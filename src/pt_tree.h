@@ -14,93 +14,76 @@
 
 using namespace std;
 
-extern uint8_t maskHash[33][4];
-
-struct LeafNode {
-	vector<Rule> rules;
+struct HashIndex {
+	void* point;
+	int pri;
+	HashIndex() : point(NULL) {}
 };
-
-struct PortNode_static
+struct innerNode {
+	uint16_t layer, id;
+	HashIndex child[257];
+	uint8_t ipIndex; // 0-3: sip 1-4; 4-7: dip 1-4
+	bool childType; // 0: innernode; 1: leafnode
+	innerNode(uint8_t a, bool b, uint16_t c, uint16_t d) : ipIndex(a), childType(b), layer(c), id(d) {}
+};
+struct leafNode {
+	vector<Rule> rule;
+	//class maskTree* subtree;
+};
+struct PortNode
 {
-	short table[32769];
-	vector<pair<uint32_t, LeafNode*>> child;  // first: pri second: pointer
-	PortNode_static() { for (int i = 0; i < 32769; ++i)table[i] = -1; }
+	short index[32769];
+	vector<pair<uint32_t, leafNode*>> child;
+	PortNode() { for (int i = 0; i < 32769; ++i)index[i] = -1; }
 };
-
 struct ProtoNode {
-	vector<short> table;
-	vector<pair<uint32_t, PortNode_static*>> child;  // first: pri second: pointer
-	ProtoNode() : table(256, -1) {}
+	vector<short> index;
+	//vector<unsigned int> pri;
+	vector<pair<uint32_t, PortNode*>> child;
+	ProtoNode() : index(256, -1) {}
 };
 
-struct ipChild
-{
-	void* pointer;
-	uint32_t pri;
-	ipChild() :pointer(NULL), pri(0) {}
+struct ACL_LOG {
+	int rules_num;
+	int check_hashlist;
+	vector<innerNode*> innernodes;
+	vector<leafNode*> leafnodes;
+	vector<PortNode*> portNodes;
+	ACL_LOG() : rules_num(0), check_hashlist(0) {}
 };
-
-struct IpNode_static {
-	uint16_t layer, id, field, cType;  // layer: node layer; id: node id; field: node setted field(0-3: sip1-4 4-7: dip1-4); cType: node child type(0: ipnode 1: leafnode) 
-	ipChild child[257];
-	IpNode_static(uint16_t a, uint16_t b, uint16_t c, uint16_t d) : layer(a), id(b), field(c), cType(d) {}
-};
-
-struct IpNode
-{
-
-};
-
-struct LOG
-{
-	int cRules;
-	int cTables;
-	vector<void*> cIpNodes;
-	vector<LeafNode*> cLeafNodes;
-	vector<void*> cPortNodes;
-	LOG(): cRules(0), cTables(0){}
-};
-
 
 class PTtree {
 private:
-	vector<int> layerFields;  // each layer selected field (0-3: sip1-4 4-7: dip1-4)
-	int portField;  // 0: Sport 1: Dport
-	int portStep;  // field divided step in first level
+	vector<uint8_t> layertype;
+	unsigned int maskHash[33][4];
 public:
-	void* pTree; // prefix tuple cascading tree
-	ProtoNode* aTree; // auxiliary tree
-	int totalNodes;
-	vector<void*> IpNodesList;
-	vector<LeafNode*> ptLeafNodesList;
-	vector<void*> PortNodesList;
-	vector<LeafNode*> aLeafNodesList;
-public:
-	
-	PTtree(vector<int>& list, int a, int b); // (fieldlist, portField: 0-sport, 1-dport, step)
-	//~PTtree();
+	innerNode* root;
+	ProtoNode* as_tree;
+	int nodeNum;
+	vector<innerNode*> innernodeList;
+	vector<leafNode*> leafnode;
+	vector<leafNode*> as_leafnode;
 
-	void freeNode(void* node);
+	PTtree(int a, int b, int c, int d);
+	PTtree(int a, int b, int c);
+	~PTtree();
+	void freeNode(innerNode* node);
 
-	void insert(const Rule& _r);
-	bool remove(const Rule& _r);
+	void insert(Rule& r);
+	bool remove(Rule& r);
+	int search(Packet& m);
+	int search_with_log(Packet& m, ACL_LOG& log);
 
-	int search(const Packet& _p);
-	int search_log(const Packet& _p, LOG& log);
+	size_t get_innernode_mem(innerNode* node);
+	size_t get_leafnode_mem(leafNode* node);
+	size_t get_mem(innerNode* node);
+	size_t mem();
 
-	size_t get_innernode_mem(IpNode* node);
-	size_t get_leafnode_mem(LeafNode* node);
-	size_t get_mem(void* node);
-	size_t total_mem();
-
-	void analyse_rules(const vector<Rule>& rules);
-	// void get_mask_ip(int _type, const Rule& _r, uint32_t& _mask, uint32_t& _ip);
+	void analyse_data(vector<Rule>& list);
 };
 
-void set_maskHash();
-
-int check_correct(const Rule& _r, const Packet& _p);
-int simple_search(const vector<Rule>& rules, const Packet& _p);
+int check_correct(Rule& a, Packet& b);
+int simple_match(vector<Rule>& rules, Packet& b);
 
 inline uint64_t GetCPUCycle()
 {

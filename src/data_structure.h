@@ -8,23 +8,23 @@
 #include <stdint.h>
 
 typedef struct Rule {
-	uint32_t pri;  //priority
-	uint8_t protocol[2];  // [0] : mask [1] : protocol
-	uint8_t Smask;
-	uint8_t Dmask;
-	uint8_t Sip[4];
-	uint8_t Dip[4];
-	uint16_t Sport[2];
-	uint16_t Dport[2];
+	int PRI;  //priority
+	unsigned char protocol[2];  // [0] : mask [1] : protocol
+	unsigned char source_mask;
+	unsigned char destination_mask;
+	unsigned char source_ip[4];
+	unsigned char destination_ip[4];
+	unsigned short source_port[2];
+	unsigned short destination_port[2];
 }Rule;
 
 typedef struct Packet
 {
-	uint32_t protocol;
-	uint8_t Sip[4];
-	uint8_t Dip[4];
-	uint16_t Sport;
-	uint16_t Dport;
+	unsigned int protocol;
+	unsigned char source_ip[4];
+	unsigned char destination_ip[4];
+	unsigned short source_port;
+	unsigned short destination_port;
 }Packet;
 
 #endif //__DATA_STRUCTURE_H_
