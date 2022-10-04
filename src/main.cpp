@@ -15,9 +15,9 @@ double get_milli_time(struct timespec* a, struct timespec* b) {
 
 int main() {
 
+	vector<uint8_t> fields{ 4, 0, 1 };
 	vector<Rule> rules;
 	vector<Packet> packets;
-	vector<int> fields{ 4,0,1 };
 	vector<int> check_list;
 	struct timespec t1, t2;
 
@@ -28,8 +28,9 @@ int main() {
 
 	if (!read_rules(rule_file, rules)) return -1;
 	if (!read_packets(packet_file, packets, check_list)) return -1;
+	setmaskHash();
 
-	PTtree tree(4, 0 ,1);
+	PTtree tree(fields);
 
 	//double insert_cycle = 0;
 	clock_gettime(CLOCK_REALTIME, &t1);
@@ -39,7 +40,7 @@ int main() {
 	clock_gettime(CLOCK_REALTIME, &t2);
 	double build_time = get_milli_time(&t1, &t2);
 	cout << "construct time: " << build_time << "ms" << endl;
-	cout << tree.nodeNum << endl;
+	cout << tree.totalNodes << endl;
 
 	for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 1000; ++j) {
