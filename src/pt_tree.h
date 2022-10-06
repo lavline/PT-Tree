@@ -16,6 +16,25 @@ using namespace std;
 
 extern uint8_t maskHash[33][4];
 
+struct IpTable
+{
+	uint32_t pri;
+	uint32_t mask;
+	vector<short> table;
+	vector<pair<uint32_t, void*>> child; // first: pri second: pointer
+	IpTable(uint32_t n) : table(1 << n, -1), pri(0), mask(n) {}
+};
+
+struct IpNode
+{
+	uint16_t layer, id;
+	list<IpTable> tableList; // first: pri second: table
+	uint8_t field; // 0-3: sip 1-4; 4-7: dip 1-4
+	bool childType; // 0: innernode; 1: leafnode
+	//innerNode* parent;
+	IpNode(uint8_t _field, bool _cType, uint16_t _layer, uint16_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
+};
+
 struct IpChild {
 	void* pointer;
 	int pri;
@@ -26,35 +45,39 @@ struct IpNode_static {
 	IpChild child[257];
 	uint8_t field; // 0-3: sip 1-4; 4-7: dip 1-4
 	bool childType; // 0: innernode; 1: leafnode
-	IpNode_static(uint8_t a, bool b, uint16_t c, uint16_t d) : field(a), childType(b), layer(c), id(d) {}
+	IpNode_static(uint8_t _field, bool _cType, uint16_t _layer, uint16_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
 };
 struct LeafNode {
 	vector<Rule> rule;
 };
-struct PortNode
+struct PortNode_static
 {
-	short index[32769];
+	short table[32769];
 	vector<pair<uint32_t, LeafNode*>> child;
-	PortNode() { for (int i = 0; i < 32769; ++i)index[i] = -1; }
+	PortNode_static() { for (int i = 0; i < 32769; ++i)table[i] = -1; }
 };
 struct ProtoNode {
-	vector<short> index;
-	vector<pair<uint32_t, PortNode*>> child;
-	ProtoNode() : index(256, -1) {}
+	vector<short> table;
+	vector<pair<uint32_t, void*>> child;
+	ProtoNode() : table(256, -1) {}
 };
 
 struct ACL_LOG {
 	int rules;
 	int tables;
+	int innerNodes;
+	int leafNodes;
 	vector<void*> ipNodeList;
-	vector<LeafNode*> leafNodeList;
-	vector<PortNode*> portNodeList;
-	ACL_LOG() : rules(0), tables(0) {}
+	vector<LeafNode*> pLeafNodeList;
+	vector<void*> portNodeList;
+	vector<LeafNode*> aLeafNodeList;
+	ACL_LOG() : rules(0), tables(0), innerNodes(0), leafNodes(0) {}
 };
 
 class PTtree {
 private:
 	vector<uint8_t> layerFields;
+	int portField, portStep;
 public:
 	void* pTree;
 	ProtoNode* aTree;
@@ -63,24 +86,34 @@ public:
 	vector<LeafNode*> pLeafNodeList;
 	vector<LeafNode*> aLeafNodeList;
 
-	PTtree(vector<uint8_t>& list);
+	PTtree(vector<uint8_t>& list, int _portField);
+	PTtree(vector<uint8_t>& list, int _portField, int _portStep);
 	~PTtree();
+
 	void freeStaticNode(IpNode_static* node);
-	//void freeNode(IpNode* node);
+	void freeNode(IpNode* node);
 
 	void insert(Rule& r);
 	bool remove(Rule& r);
-	int search(Packet& m);
-	int search_with_log(Packet& m, ACL_LOG& log);
 
-	//size_t get_ipNode_mem(void* node);
+	int search(Packet& p);
+	int search_with_log(Packet& p, ACL_LOG& log);
+
+	bool update(vector<Rule>& rules, int num);
+
+	void print_node_info();
+
+	size_t get_ipNode_mem(IpNode* node);
 	size_t get_leafNode_mem(LeafNode* node);
 	size_t get_static_mem(IpNode_static* node);
+	size_t get_mem(IpNode* node);
 	size_t mem();
 
-	void analyse_data(vector<Rule>& list);
+	void analyse_ruleset(vector<Rule>& list);
 };
 
+
+int search_config(vector<vector<int>> list);
 int check_correct(Rule& a, Packet& b);
 int simple_search(vector<Rule>& rules, Packet& b);
 void setmaskHash();

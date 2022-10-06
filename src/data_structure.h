@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 typedef struct Rule {
-	int PRI;  //priority
+	int pri;  //priority
 	unsigned char protocol[2];  // [0] : mask [1] : protocol
 	unsigned char source_mask;
 	unsigned char destination_mask;
