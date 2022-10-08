@@ -730,7 +730,7 @@ int PTtree::search(Packet& p)
 	pDport = p.destination_port;
 
 	unsigned int mip[4];
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < layerFields.size(); ++i) {
 		switch (layerFields[i])
 		{
 		case 0:
@@ -902,7 +902,7 @@ int PTtree::search_with_log(Packet& p, ACL_LOG& log)
 	pDport = p.destination_port;
 
 	unsigned int mip[4];
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < layerFields.size(); ++i) {
 		switch (layerFields[i])
 		{
 		case 0:

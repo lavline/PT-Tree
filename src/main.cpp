@@ -277,18 +277,6 @@ int main(int argc, char* argv[]) {
 	cout << "|- Average search time: " << search_time / packets.size() / 1000.0 << "um\n";
 
 	/***********************************************************************************************************************/
-	// update
-	/***********************************************************************************************************************/
-	if (enable_update) {
-		int update_num = 5000;
-		cout << "\nStart update...\n";
-		bool _u = tree.update(rules, update_num, t1, t2);
-		if (_u) {
-			cout << "|- Average lookup time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
-		}
-	}
-
-	/***********************************************************************************************************************/
 	// Print Log
 	/***********************************************************************************************************************/
 	if (enable_log) {
@@ -296,7 +284,7 @@ int main(int argc, char* argv[]) {
 		// level 1: print node information
 		tree.print_node_info(log_level, rules.size());
 		// level 2: print search information
-		if(log_level > 1){
+		if (log_level > 1) {
 			FILE* log_fp = NULL;
 			if (log_level > 2) {
 				log_fp = fopen("search_info.txt", "w");
@@ -322,6 +310,18 @@ int main(int argc, char* argv[]) {
 				cout << "|- Write search infomation to search_info.txt...\n";
 				fclose(log_fp);
 			}
+		}
+	}
+
+	/***********************************************************************************************************************/
+	// update
+	/***********************************************************************************************************************/
+	if (enable_update) {
+		int update_num = 5000;
+		cout << "\nStart update...\n";
+		bool _u = tree.update(rules, update_num, t1, t2);
+		if (_u) {
+			cout << "|- Average lookup time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
 		}
 	}
 
