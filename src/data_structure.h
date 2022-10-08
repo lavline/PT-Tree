@@ -6,6 +6,7 @@
 #include <math.h>
 #include <algorithm>
 #include <stdint.h>
+#include <time.h>
 
 typedef struct Rule {
 	int pri;  //priority

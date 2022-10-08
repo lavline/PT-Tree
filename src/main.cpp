@@ -1,5 +1,4 @@
 #include <iostream>
-#include <time.h>
 #include <random>
 #include <unistd.h>
 #include <getopt.h>
@@ -206,12 +205,18 @@ int main(int argc, char* argv[]) {
 
 	cout << "\tmemory footprint: " << (double)tree.mem() / 1024.0 / 1024.0 << "MB\n";
 
+	/***********************************************************************************************************************/
+	// warm up
+	/***********************************************************************************************************************/
 	for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 1000; ++j) {
 			tree.search(packets[j]);
 		}
 	}
 
+	/***********************************************************************************************************************/
+	// Search
+	/***********************************************************************************************************************/
 	cout << "\nstart search...\n";
 	int res = 0;
 	FILE* res_fp = NULL;
@@ -241,14 +246,24 @@ int main(int argc, char* argv[]) {
 	cout << "\tAverage search time : " << search_time / packets.size() / 1000.0 << "um\n";
 
 	/***********************************************************************************************************************/
+	// Print Log
+	/***********************************************************************************************************************/
+	if (enable_log) {
+		// level 1: print node information
+
+		// level 2: print search information
+		if(log_level > 1){}
+
+		// level 3: print each packet search information to result.log
+		if(log_level > 2){}
+	}
+	/***********************************************************************************************************************/
 	// update
 	/***********************************************************************************************************************/
 	if (enable_update) {
 		int update_num = 5000;
 		cout << "\nstart update...\n";
-		clock_gettime(CLOCK_REALTIME, &t1);
-		bool _u = tree.update(rules, update_num);
-		clock_gettime(CLOCK_REALTIME, &t2);
+		bool _u = tree.update(rules, update_num, t1, t2);
 		if (_u) {
 			cout << "\tAverage update time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
 		}

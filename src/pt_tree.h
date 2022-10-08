@@ -27,12 +27,12 @@ struct IpTable
 
 struct IpNode
 {
-	uint16_t layer, id;
-	list<IpTable> tableList; // first: pri second: table
+	uint32_t id;
+	uint16_t layer;
 	uint8_t field; // 0-3: sip 1-4; 4-7: dip 1-4
 	bool childType; // 0: innernode; 1: leafnode
-	//innerNode* parent;
-	IpNode(uint8_t _field, bool _cType, uint16_t _layer, uint16_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
+	list<IpTable> tableList; // first: pri second: table
+	IpNode(uint8_t _field, bool _cType, uint16_t _layer, uint32_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
 };
 
 struct IpChild {
@@ -41,20 +41,22 @@ struct IpChild {
 	IpChild() : pointer(NULL) {}
 };
 struct IpNode_static {
-	uint16_t layer, id;
-	IpChild child[257];
+	uint32_t id;
+	uint16_t layer;
 	uint8_t field; // 0-3: sip 1-4; 4-7: dip 1-4
 	bool childType; // 0: innernode; 1: leafnode
-	IpNode_static(uint8_t _field, bool _cType, uint16_t _layer, uint16_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
+	IpChild child[257];
+	IpNode_static(uint8_t _field, bool _cType, uint16_t _layer, uint32_t _id) : field(_field), childType(_cType), layer(_layer), id(_id) {}
 };
 struct LeafNode {
 	vector<Rule> rule;
 };
 struct PortNode_static
 {
+	uint32_t id;
 	short table[32769];
 	vector<pair<uint32_t, LeafNode*>> child;
-	PortNode_static() { for (int i = 0; i < 32769; ++i)table[i] = -1; }
+	PortNode_static(uint32_t _id) :id(_id) { for (int i = 0; i < 32769; ++i)table[i] = -1; }
 };
 struct ProtoNode {
 	vector<short> table;
@@ -83,6 +85,7 @@ public:
 	ProtoNode* aTree;
 	int totalNodes;
 	vector<void*> ipNodeList;
+	vector<void*> portNodeList;
 	vector<LeafNode*> pLeafNodeList;
 	vector<LeafNode*> aLeafNodeList;
 
@@ -99,7 +102,7 @@ public:
 	int search(Packet& p);
 	int search_with_log(Packet& p, ACL_LOG& log);
 
-	bool update(vector<Rule>& rules, int num);
+	bool update(vector<Rule>& rules, int num, struct timespec& t1, struct timespec& t2);
 
 	void print_node_info();
 

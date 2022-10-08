@@ -74,7 +74,7 @@ void PTtree::insert(Rule& r)
 		else { lport_idx = r.destination_port[0] / 2, hport_idx = r.destination_port[1] / 2; }
 		if (proto_idx == -1) {
 			aTree->table[proto] = aTree->child.size();
-			PortNode_static* pnode = new PortNode_static();
+			PortNode_static* pnode = new PortNode_static(portNodeList.size());
 			++totalNodes;
 			if (lport_idx == hport_idx) pnode->table[lport_idx] = 0;
 			else pnode->table[32768] = 0;
@@ -84,6 +84,7 @@ void PTtree::insert(Rule& r)
 			lnode->rule.emplace_back(r);
 			pnode->child.emplace_back(pair<uint32_t, LeafNode*>(r.pri, lnode));
 			aTree->child.emplace_back(pair<uint32_t, void*>(r.pri, pnode));
+			portNodeList.emplace_back(pnode);
 		}
 		else {
 			PortNode_static* pnode = (PortNode_static*)aTree->child[proto_idx].second;
@@ -562,8 +563,132 @@ bool PTtree::remove(Rule& r)
 			}
 		}
 		default: {
-
-			break;
+			if (pTree == NULL) {
+				return false;
+			}
+			IpNode* node = (IpNode*)pTree;
+			int totalLayer = layerFields.size();
+			int layer = 0;
+			unsigned int mask, ip;
+			while (layer < totalLayer - 1) {
+				switch (node->field)
+				{
+				case 0:
+					mask = maskHash[(unsigned int)r.source_mask][0];
+					ip = (unsigned int)r.source_ip[3] >> (8 - mask);
+					break;
+				case 1:
+					mask = maskHash[(unsigned int)r.source_mask][1];
+					ip = (unsigned int)r.source_ip[2] >> (8 - mask);
+					break;
+				case 2:
+					mask = maskHash[(unsigned int)r.source_mask][2];
+					ip = (unsigned int)r.source_ip[1] >> (8 - mask);
+					break;
+				case 3:
+					mask = maskHash[(unsigned int)r.source_mask][3];
+					ip = (unsigned int)r.source_ip[0] >> (8 - mask);
+					break;
+				case 4:
+					mask = maskHash[(unsigned int)r.destination_mask][0];
+					ip = (unsigned int)r.destination_ip[3] >> (8 - mask);
+					break;
+				case 5:
+					mask = maskHash[(unsigned int)r.destination_mask][1];
+					ip = (unsigned int)r.destination_ip[2] >> (8 - mask);
+					break;
+				case 6:
+					mask = maskHash[(unsigned int)r.destination_mask][2];
+					ip = (unsigned int)r.destination_ip[1] >> (8 - mask);
+					break;
+				case 7:
+					mask = maskHash[(unsigned int)r.destination_mask][3];
+					ip = (unsigned int)r.destination_ip[0] >> (8 - mask);
+					break;
+				default:
+					break;
+				}
+				list<IpTable>::iterator it = node->tableList.begin();
+				for (; it != node->tableList.end(); ++it) {
+					if (mask == it->mask) {  // have table
+						if (it->table[ip] == -1) { // no child
+							return false;
+						}
+						else {
+							node = (IpNode*)(it->child[it->table[ip]].second);
+							break;
+						}
+					}
+					if (mask > it->mask) { // find the site
+						break;
+					}
+				}
+				if (it == node->tableList.end() || mask != it->mask) { // no table
+					return false;
+				}
+				++layer;
+			}
+			// process leafnode
+			node->childType = 1;
+			switch (node->field)
+			{
+			case 0:
+				mask = maskHash[(unsigned int)r.source_mask][0];
+				ip = (unsigned int)r.source_ip[3] >> (8 - mask);
+				break;
+			case 1:
+				mask = maskHash[(unsigned int)r.source_mask][1];
+				ip = (unsigned int)r.source_ip[2] >> (8 - mask);
+				break;
+			case 2:
+				mask = maskHash[(unsigned int)r.source_mask][2];
+				ip = (unsigned int)r.source_ip[1] >> (8 - mask);
+				break;
+			case 3:
+				mask = maskHash[(unsigned int)r.source_mask][3];
+				ip = (unsigned int)r.source_ip[0] >> (8 - mask);
+				break;
+			case 4:
+				mask = maskHash[(unsigned int)r.destination_mask][0];
+				ip = (unsigned int)r.destination_ip[3] >> (8 - mask);
+				break;
+			case 5:
+				mask = maskHash[(unsigned int)r.destination_mask][1];
+				ip = (unsigned int)r.destination_ip[2] >> (8 - mask);
+				break;
+			case 6:
+				mask = maskHash[(unsigned int)r.destination_mask][2];
+				ip = (unsigned int)r.destination_ip[1] >> (8 - mask);
+				break;
+			case 7:
+				mask = maskHash[(unsigned int)r.destination_mask][3];
+				ip = (unsigned int)r.destination_ip[0] >> (8 - mask);
+				break;
+			default:
+				break;
+			}
+			list<IpTable>::iterator it = node->tableList.begin();
+			for (; it != node->tableList.end(); ++it) {
+				if (mask == it->mask) {  // have table
+					if (it->table[ip] == -1) { // no child
+						return false;
+					}
+					else {
+						LeafNode* ln = ((LeafNode*)(it->child[it->table[ip]].second));
+						for (int i = 0; i < ln->rule.size(); ++i) {
+							if (ln->rule[i].pri == r.pri) {
+								ln->rule.erase(ln->rule.begin() + i);
+								return true;
+							}
+						}
+						break;
+					}
+				}
+				if (mask > it->mask) { // find the site
+					break;
+				}
+			}
+			return false;
 		}
 		}
 	}
@@ -943,8 +1068,18 @@ int PTtree::search_with_log(Packet& p, ACL_LOG& log)
 	return res;
 }
 
-bool PTtree::update(vector<Rule>& rules, int num)
+bool PTtree::update(vector<Rule>& rules, int num, struct timespec& t1, struct timespec& t2)
 {
+	int ruleNum = rules.size();
+	vector<Rule> newRule;
+	for (int i = 0; i < num; ++i) {
+		Rule r = rules[i];
+		r.pri = ruleNum++;
+		newRule.emplace_back(r);
+	}
+
+	clock_gettime(CLOCK_REALTIME, &t1);
+	// remove
 	for (int i = 0; i < num; ++i) {
 		bool res = this->remove(rules[i]);
 		if (!res) {
@@ -952,9 +1087,11 @@ bool PTtree::update(vector<Rule>& rules, int num)
 			return res;
 		}
 	}
+	// insert
 	for (int i = 0; i < num; ++i) {
-		this->insert(rules[i]);
+		this->insert(newRule[i]);
 	}
+	clock_gettime(CLOCK_REALTIME, &t2);
 	return true;
 }
 
