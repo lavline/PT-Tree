@@ -22,7 +22,6 @@
  *	SOFTWARE.
  */
 
-#include <iostream>
 #include <random>
 #include <unistd.h>
 #include <getopt.h>
@@ -69,11 +68,11 @@ int main(int argc, char* argv[]) {
 		switch (opt)
 		{
 		case 'r':
-			cout << "read ruleset: " << optarg << endl;
+			cout << "Read ruleset:  " << optarg << endl;
 			if (!read_rules(optarg, rules)) return -1;
 			break;
 		case 'p':
-			cout << "read packets: " << optarg << endl;
+			cout << "Rread packets: " << optarg << endl;
 			if (!read_packets(optarg, packets, check_list)) return -1;
 			break;
 		case 'f': {
@@ -86,12 +85,12 @@ int main(int argc, char* argv[]) {
 				}
 				++i;
 			}
-			cout << "set pTree field: ";
+			cout << "Set pTree field: ";
 			for (i = 0; i < tmp_in_field.size() - 1; ++i) {
 				cout << tmp_in_field[i] << " ";
 				set_field.emplace_back(tmp_in_field[i]);
 			}
-			cout << "\nset aTree port field: " << tmp_in_field[i] << endl;
+			cout << "\nSet aTree port field: " << tmp_in_field[i] << endl;
 			set_port = tmp_in_field[i];
 			break;
 		}
@@ -102,21 +101,24 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "error-unknown log level %d.\n", log_level);
 				return -1;
 			}
-			cout << "enable log: level " << log_level << endl;
+			cout << "Enable log:    level " << log_level << endl;
 			break;
 		case 'u':
 			enable_update = true;
-			cout << "enable update\n";
+			cout << "Enable update\n";
 			break;
 		case 'h':
-			cout << "\n-r(--ruleset): Input the rule set file. This argument must be specified. (Example: [-r acl1])\n";
-			cout << "-p(--packet):  Input the packet set file. If not set, the program will generate randomly. (Example: [-p acl1_trace])\n";
-			cout << "-f(--fields):  Set the pTree and aTree used fields, using \',\' to separation. The last on is the port setting, 0 is source port, 1 is destination port.\n";
-			cout << "               Using 0-3 to express source ip 1-4 byte and 4-7 to express destination ip 1-4 byte. (Example: [-f 4,0,1,1])\n";
-			cout << "-l(--log):     Enable the log. Have three level 1-3. (Example: [-l 3])\n";
-			cout << "-u(--update):  Enable update. (Example: [-u])\n";
-			cout << "-h(--help):    Print the usage guideline.\n\n";
-			return 0;
+			cout << "\n************************************************************************************************************************************************************\n";
+			cout <<   "* -r(--ruleset): Input the rule set file. This argument must be specified. (Example: [-r acl1])                                                            *\n";
+			cout <<   "* -p(--packet):  Input the packet set file. If not set, the program will generate randomly. (Example: [-p acl1_trace])                                     *\n";
+			cout <<   "* -f(--fields):  Set the pTree and aTree used fields, using \',\' to separation. The last on is the port setting, 0 is source port, 1 is destination port.   *\n";
+			cout <<   "*                Using 0-3 to express source ip 1-4 byte and 4-7 to express destination ip 1-4 byte. (Example: [-f 4,0,1,1])                               *\n";
+			cout <<   "* -l(--log):     Enable the log. Have three level 1-3. (Example: [-l 3])                                                                                   *\n";
+			cout <<   "* -u(--update):  Enable update. (Example: [-u])                                                                                                            *\n";
+			cout <<   "* -h(--help):    Print the usage guideline.                                                                                                                *\n";
+			cout <<   "************************************************************************************************************************************************************\n\n";
+			if (argc == 1)return 0;
+			break;
 		case '?':
 			fprintf(stderr, "error-unknown argument -%c.", optopt);
 			return -1;
@@ -132,7 +134,7 @@ int main(int argc, char* argv[]) {
 	// search config
 	/***********************************************************************************************************************/
 	if (set_field.size() == 0) {
-		cout << "\nsearch config...\n";
+		cout << "\nSearch config...\n";
 		int search_leavel = 1000;
 		vector<Packet> tmp_packets;
 		gen_trace(tmp_packets, rules, search_leavel);
@@ -203,15 +205,15 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		clock_gettime(CLOCK_REALTIME, &st2);
-		cout << "\tsearch config time: " << get_milli_time(&st1, &st2) / 1000.0 << "s\n";
-		cout << "\tbest config: ";
+		cout << "|- Search config time:    " << get_milli_time(&st1, &st2) / 1000.0 << "s\n";
+		cout << "|- Best config:           ";
 		for (unsigned int _f : fields[best_config1]) {
 			cout << ipFieldName[_f] << ",";
 			set_field.emplace_back(_f);
 		}
 		if (best_config2 == 0)cout << "Sport";
 		else cout << "Dport";
-		cout << "\n\tbest time: " << best_time / 1000000.0 << "um\n";
+		cout << "\n|- Minimum lookup time:   " << best_time / 1000000.0 << "um\n";
 		set_port = best_config2;
 	}
 	
@@ -220,7 +222,7 @@ int main(int argc, char* argv[]) {
 	/***********************************************************************************************************************/
 	// insert
 	/***********************************************************************************************************************/
-	cout << "\nstart build...\nUsing fields ";
+	cout << "\nStart build...\n|- Using fields:     ";
 	for (unsigned int x : set_field)cout << x << ",";
 	cout << set_port << endl;
 	clock_gettime(CLOCK_REALTIME, &t1);
@@ -229,10 +231,10 @@ int main(int argc, char* argv[]) {
 	}
 	clock_gettime(CLOCK_REALTIME, &t2);
 	double build_time = get_milli_time(&t1, &t2);
-	cout << "\tconstruct time: " << build_time << "ms\n";
+	cout << "|- Construct time:   " << build_time << "ms\n";
 	//cout << tree.totalNodes << endl;
-
-	cout << "\tmemory footprint: " << (double)tree.mem() / 1024.0 / 1024.0 << "MB\n";
+	            
+	cout << "|- Memory footprint: " << (double)tree.mem() / 1024.0 / 1024.0 << "MB\n";
 
 	/***********************************************************************************************************************/
 	// warm up
@@ -272,30 +274,57 @@ int main(int argc, char* argv[]) {
 		fprintf(res_fp, "Packet %d \t Result %d \t Time(um) %f\n", i, res, _time / 1000.0);
 	}
 	fclose(res_fp);
-	cout << "\tAverage search time : " << search_time / packets.size() / 1000.0 << "um\n";
+	cout << "|- Average search time: " << search_time / packets.size() / 1000.0 << "um\n";
 
-	/***********************************************************************************************************************/
-	// Print Log
-	/***********************************************************************************************************************/
-	if (enable_log) {
-		// level 1: print node information
-
-		// level 2: print search information
-		if(log_level > 1){}
-
-		// level 3: print each packet search information to result.log
-		if(log_level > 2){}
-	}
 	/***********************************************************************************************************************/
 	// update
 	/***********************************************************************************************************************/
 	if (enable_update) {
 		int update_num = 5000;
-		cout << "\nstart update...\n";
+		cout << "\nStart update...\n";
 		bool _u = tree.update(rules, update_num, t1, t2);
 		if (_u) {
-			cout << "\tAverage update time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
+			cout << "|- Average lookup time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
 		}
 	}
+
+	/***********************************************************************************************************************/
+	// Print Log
+	/***********************************************************************************************************************/
+	if (enable_log) {
+		cout << "\nPrint Log...\n";
+		// level 1: print node information
+		tree.print_node_info(log_level, rules.size());
+		// level 2: print search information
+		if(log_level > 1){
+			FILE* log_fp = NULL;
+			if (log_level > 2) {
+				log_fp = fopen("search_info.txt", "w");
+				fprintf(log_fp, "Search Log [PACKET_ID ACC_INNERNODE ACC_LEAFNODE ACC_TABLE ACC_RULE ACC_IPNODE ACC_PORTNODE]\n\n");
+			}
+			double acc_inner, acc_leaf, acc_table, acc_rule;
+			acc_inner = acc_leaf = acc_table = acc_rule = 0;
+			for (int i = 0; i < packets.size(); ++i) {
+				ACL_LOG log;
+				tree.search_with_log(packets[i], log);
+				acc_inner += log.innerNodes;
+				acc_leaf += log.leafNodes;
+				acc_table += log.tables;
+				acc_rule += log.rules;
+				if (log_level > 2)
+					fprintf(log_fp, "%d\t%u\t%u\t%u\t%u\t%u\t%u\n", i, log.innerNodes, log.leafNodes, log.tables, log.rules, log.ipNodeList.size(), log.portNodeList.size());
+			}
+			cout << "|- Access innerNode avg num: " << acc_inner / packets.size() << endl;
+			cout << "|- Access leafNode avg num:  " << acc_leaf / packets.size() << endl;
+			cout << "|- Access table avg num:     " << acc_table / packets.size() << endl;
+			cout << "|- Access rule avg num:      " << acc_rule / packets.size() << endl;
+			if (log_level > 2) {
+				cout << "|- Write search infomation to search_info.txt...\n";
+				fclose(log_fp);
+			}
+		}
+	}
+
+	cout << "\nProgram complete.\n";
 	return 0;
 }

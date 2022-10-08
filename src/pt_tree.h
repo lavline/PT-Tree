@@ -24,8 +24,9 @@
 
 #ifndef _PT_TREE_
 #define _PT_TREE_
-#include "data_structure.h"
 #include <list>
+#include <iostream>
+#include "data_structure.h"
 
 #define SIP_1 0
 #define SIP_2 1
@@ -128,7 +129,7 @@ public:
 
 	bool update(vector<Rule>& rules, int num, struct timespec& t1, struct timespec& t2);
 
-	void print_node_info();
+	void print_node_info(int level, int rules);
 
 	size_t get_ipNode_mem(IpNode* node);
 	size_t get_leafNode_mem(LeafNode* node);
