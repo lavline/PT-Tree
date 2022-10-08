@@ -1,3 +1,27 @@
+/*
+ *	MIT License
+ *
+ *	Copyright(c) 2022 ShangHai Jiao Tong Univiersity CIT Laboratory.
+ *
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	of this softwareand associated documentation files(the "Software"), to deal
+ *	in the Software without restriction, including without limitation the rights
+ *	to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+ *	copies of the Software, and to permit persons to whom the Software is
+ *	furnished to do so, subject to the following conditions :
+ *
+ *	The above copyright noticeand this permission notice shall be included in all
+ *	copies or substantial portions of the Software.
+ *
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *	SOFTWARE.
+ */
+
 #include <iostream>
 #include <random>
 #include <unistd.h>
@@ -5,6 +29,7 @@
 #include <stdlib.h>
 #include "pt_tree.h"
 #include "read.h"
+#include "gen.h"
 
 using namespace std;
 
@@ -100,6 +125,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	if (packets.size() == 0)gen_trace(packets, check_list, rules, 1000000);
 	setmaskHash();
 	
 	/***********************************************************************************************************************/
@@ -107,6 +133,9 @@ int main(int argc, char* argv[]) {
 	/***********************************************************************************************************************/
 	if (set_field.size() == 0) {
 		cout << "\nsearch config...\n";
+		int search_leavel = 1000;
+		vector<Packet> tmp_packets;
+		gen_trace(tmp_packets, rules, search_leavel);
 		vector<vector<uint8_t>> fields;
 		vector<uint8_t> tmp_fields;
 		tmp_fields.resize(3);
@@ -142,8 +171,8 @@ int main(int argc, char* argv[]) {
 				tree.insert(r);
 			}
 			clock_gettime(CLOCK_REALTIME, &t1);
-			for (int i = 0; i < 1000; ++i) {
-				tree.search(packets[i]);
+			for (int j = 0; j < search_leavel; ++j) {
+				tree.search(tmp_packets[j]);
 			}
 			clock_gettime(CLOCK_REALTIME, &t2);
 			cur_time = get_nano_time(&t1, &t2);
@@ -161,8 +190,8 @@ int main(int argc, char* argv[]) {
 				tree.insert(r);
 			}
 			clock_gettime(CLOCK_REALTIME, &t1);
-			for (int i = 0; i < 1000; ++i) {
-				tree.search(packets[i]);
+			for (int i = 0; i < search_leavel; ++i) {
+				tree.search(tmp_packets[i]);
 			}
 			clock_gettime(CLOCK_REALTIME, &t2);
 			cur_time = get_nano_time(&t1, &t2);

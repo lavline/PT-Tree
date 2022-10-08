@@ -1,3 +1,27 @@
+/*
+ *	MIT License
+ *
+ *	Copyright(c) 2022 ShangHai Jiao Tong Univiersity CIT Laboratory.
+ *
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	of this softwareand associated documentation files(the "Software"), to deal
+ *	in the Software without restriction, including without limitation the rights
+ *	to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+ *	copies of the Software, and to permit persons to whom the Software is
+ *	furnished to do so, subject to the following conditions :
+ *
+ *	The above copyright noticeand this permission notice shall be included in all
+ *	copies or substantial portions of the Software.
+ *
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *	SOFTWARE.
+ */
+
 #include "pt_tree.h"
 
 uint8_t maskHash[33][4];
@@ -744,15 +768,15 @@ int PTtree::search(Packet& p)
 	{
 	case 3: {
 		IpNode_static* node_1 = (IpNode_static*)pTree;
-		int i_1[2] = { mip[0], 256 };
+		unsigned int i_1[2] = { mip[0], 256 };
 		for (int i = 0; i < 2; ++i) {
 			if (node_1->child[i_1[i]].pointer == NULL || node_1->child[i_1[i]].pri > res)continue;
 			IpNode_static* node_2 = (IpNode_static*)node_1->child[i_1[i]].pointer;
-			int i_2[2] = { mip[1], 256 };
+			unsigned int i_2[2] = { mip[1], 256 };
 			for (int j = 0; j < 2; ++j) {
 				if (node_2->child[i_2[j]].pointer == NULL || node_2->child[i_2[j]].pri > res)continue;
 				IpNode_static* node_3 = (IpNode_static*)node_2->child[i_2[j]].pointer;
-				int i_3[2] = { mip[2], 256 };
+				unsigned int i_3[2] = { mip[2], 256 };
 				for (int k = 0; k < 2; ++k) {
 					if (node_3->child[i_3[k]].pointer == NULL || node_3->child[i_3[k]].pri > res)continue;
 					LeafNode* ln = (LeafNode*)node_3->child[i_3[k]].pointer;
@@ -917,17 +941,17 @@ int PTtree::search_with_log(Packet& p, ACL_LOG& log)
 		{
 		case 3: {
 			IpNode_static* node_1 = (IpNode_static*)pTree;
-			int i_1[2] = { mip[0], 256 };
+			unsigned int i_1[2] = { mip[0], 256 };
 			log.ipNodeList.emplace_back(node_1);
 			for (int i = 0; i < 2; ++i) {
 				if (node_1->child[i_1[i]].pointer == NULL || node_1->child[i_1[i]].pri > res)continue;
 				IpNode_static* node_2 = (IpNode_static*)node_1->child[i_1[i]].pointer;
-				int i_2[2] = { mip[1], 256 };
+				unsigned int i_2[2] = { mip[1], 256 };
 				log.ipNodeList.emplace_back(node_2);
 				for (int j = 0; j < 2; ++j) {
 					if (node_2->child[i_2[j]].pointer == NULL || node_2->child[i_2[j]].pri > res)continue;
 					IpNode_static* node_3 = (IpNode_static*)node_2->child[i_2[j]].pointer;
-					int i_3[2] = { mip[2], 256 };
+					unsigned int i_3[2] = { mip[2], 256 };
 					log.ipNodeList.emplace_back(node_3);
 					for (int k = 0; k < 2; ++k) {
 						if (node_3->child[i_3[k]].pointer == NULL || node_3->child[i_3[k]].pri > res)continue;

@@ -22,16 +22,12 @@
  *	SOFTWARE.
  */
 
-#ifndef __READ_H_
-#define __READ_H_
+#ifndef _GEN_H_
+#define _GEN_H_
+#include <random>
 #include "data_structure.h"
 
-using namespace std;
+void gen_trace(std::vector<Packet>& packets, std::vector<int>& check_list, std::vector<Rule>& rules, unsigned int size);
+void gen_trace(std::vector<Packet>& packets, std::vector<Rule>& rules, unsigned int size);
 
-int read_rules(const char* file_name, vector<Rule>& list);
-int read_packets(const char* file_name, vector<Packet>& list, vector<int>& check_list);
-
-int read_contest_rules(const char* file_name, vector<Rule>& list);
-int read_contest_packets(const char* file_name, vector<Packet>& list, vector<int>& check_list);
-
-#endif // !__READ_H_
+#endif // !_GEN_H_
