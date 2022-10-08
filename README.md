@@ -1,10 +1,17 @@
-#Build
-```cmake .```
-```make```
+# Build
+```
+cmake .
+```
+```
+make
+```
 
-#Help
-```./pt_tree -h```
-get the help
+# Help
+```
+./pt_tree -h
+```
 
-#Example
-```./pt_tree -r alc1 -p acl1_trace```
+# Example
+```
+./pt_tree -r alc1 -p acl1_trace
+```
