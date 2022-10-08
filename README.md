@@ -1,8 +1,6 @@
 # Build
 ```
 cmake .
-```
-```
 make
 ```
 
