@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
 			cout <<   "* -u(--update):  Enable update. (Example: [-u])                                                                                                            *\n";
 			cout <<   "* -h(--help):    Print the usage guideline.                                                                                                                *\n";
 			cout <<   "************************************************************************************************************************************************************\n\n";
-			if (argc == 1)return 0;
+			if (argc == 2)return 0;
 			break;
 		case '?':
 			fprintf(stderr, "error-unknown argument -%c.", optopt);

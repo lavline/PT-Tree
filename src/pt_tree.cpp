@@ -1409,30 +1409,11 @@ int simple_search(vector<Rule>& rules, Packet& b)
 void setmaskHash()
 {
 	for (int i = 0; i < 33; ++i) {
-		if (i < 8) {
-			maskHash[i][0] = i;
-			maskHash[i][1] = 0;
-			maskHash[i][2] = 0;
-			maskHash[i][3] = 0;
-		}
-		else {
-			maskHash[i][0] = 8;
-			if (i < 16) {
-				maskHash[i][1] = i - 8;
-				maskHash[i][2] = 0;
-				maskHash[i][3] = 0;
-			}
-			else {
-				maskHash[i][1] = 8;
-				if (i < 24) {
-					maskHash[i][2] = i - 16;
-					maskHash[i][3] = 0;
-				}
-				else {
-					maskHash[i][2] = 8;
-					maskHash[i][3] = i - 24;
-				}
-			}
+		int j = 0;
+		for (; j < i / 8; ++j)maskHash[i][j] = 8;
+		if (j < 4) {
+			maskHash[i][j] = i % 8;
+			for (++j; j < 4; ++j)maskHash[i][j] = 0;
 		}
 	}
 }
