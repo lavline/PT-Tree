@@ -321,7 +321,7 @@ int main(int argc, char* argv[]) {
 		cout << "\nStart update...\n";
 		bool _u = tree.update(rules, update_num, t1, t2);
 		if (_u) {
-			cout << "|- Average lookup time: " << get_nano_time(&t1, &t2) / update_num / 2000.0 << "um\n";
+			cout << "|- Average lookup time: " << get_nano_time(&t1, &t2) / update_num * 2.0 / 1000.0 << "um\n";
 		}
 	}
 
