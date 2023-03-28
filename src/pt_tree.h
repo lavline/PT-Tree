@@ -26,6 +26,9 @@
 #define _PT_TREE_
 #include <list>
 #include <iostream>
+#include <atomic>
+#include <cmath>
+#include <unistd.h>
 #include "data_structure.h"
 
 #define SIP_1 0
@@ -36,6 +39,7 @@
 #define DIP_2 5
 #define DIP_3 6
 #define DIP_4 7
+#define SLEEP_TIME 18
 
 using namespace std;
 
@@ -75,6 +79,7 @@ struct IpNode_static {
 };
 struct LeafNode {
 	vector<Rule> rule;
+	vector<Rule> cp_rule;
 };
 struct PortNode_static
 {
@@ -108,6 +113,8 @@ private:
 public:
 	void* pTree;
 	ProtoNode* aTree;
+	bool pt_is_modify;
+	bool at_is_modify;
 	int totalNodes;
 	vector<void*> ipNodeList;
 	vector<void*> portNodeList;
@@ -121,10 +128,15 @@ public:
 	void freeStaticNode(IpNode_static* node);
 	void freeNode(IpNode* node);
 
+	void construct_for_multi(vector<Rule>& rules);
+	
 	void insert(Rule& r);
+	int insert_multiThread(Rule& r);
 	bool remove(Rule& r);
+	bool remove_multiThread(Rule& r);
 
 	int search(Packet& p);
+	int search_multiThread(Packet& p);
 	int search_with_log(Packet& p, ACL_LOG& log);
 
 	bool update(vector<Rule>& rules, int num, struct timespec& t1, struct timespec& t2);
@@ -164,5 +176,7 @@ inline uint64_t GetCPUCycle()
 #endif
 }
 
-
+double get_nano_time(struct timespec* a, struct timespec* b);
+double get_milli_time(struct timespec* a, struct timespec* b);
+double sleep_for_sync(int n);
 #endif // !_PT_TREE_
