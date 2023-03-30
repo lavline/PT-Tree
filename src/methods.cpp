@@ -131,153 +131,155 @@ void multi_thread(vector<uint8_t> set_field, int set_port, bool enable_log, int 
 	printf("|- Memory footprint: %f MB\n", (double)tree.mem() / 1024.0 / 1024.0);
 
 	int thread_num = 2;
-	int workloads = (packets.size() / thread_num) + 1;
-	double throughput[thread_num];
-	atomic_int32_t cur_packet(0);
-	atomic_bool start_test(false);
-	thread threads[thread_num];
+	for (; thread_num <= 32; thread_num *= 2) {
+		int workloads = (packets.size() / thread_num) + 1;
+		double throughput[thread_num];
+		atomic_int32_t cur_packet(0);
+		atomic_bool start_test(false);
+		thread threads[thread_num];
 
-	// multi-thread read
-	for (int i = 0; i < thread_num; ++i) {
-		threads[i] = thread([&](int id, int start_p, int end_p)->bool
-			{
-				struct timespec t1, t2;
-				int res = -1;
-				double s_time = 0;
-				while (!start_test);
-				for (int j = start_p; j < end_p; ++j) {
-					clock_gettime(CLOCK_REALTIME, &t1);
-					res = tree.search_multiThread(packets[j]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					double _time = get_nano_time(&t1, &t2);
-					//printf("%f\n", _time);
-					s_time += _time;
-					if (res != check_list[j]) {
-						if (res > check_list[j] || !check_correct(rules[res], packets[j])) {
-							fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
-							//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
-							return false;
+		// multi-thread read
+		for (int i = 0; i < thread_num; ++i) {
+			threads[i] = thread([&](int id, int start_p, int end_p)->bool
+				{
+					struct timespec t1, t2;
+					int res = -1;
+					double s_time = 0;
+					while (!start_test);
+					for (int j = start_p; j < end_p; ++j) {
+						clock_gettime(CLOCK_REALTIME, &t1);
+						res = tree.search_multiThread(packets[j]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						double _time = get_nano_time(&t1, &t2);
+						//printf("%f\n", _time);
+						s_time += _time;
+						if (res != check_list[j]) {
+							if (res > check_list[j] || !check_correct(rules[res], packets[j])) {
+								fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
+								//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
+								return false;
+							}
 						}
 					}
-				}
-				throughput[id] = 1000.0 * (end_p - start_p) / s_time;
-				//printf("%d %d %f\n", start_p, end_p, s_time / (end_p - start_p) / 1000.0);
-				//printf("id: %d throughput: %f\n", id, s_time / (end_p - start_p) / 1000.0);
-				return true;
-			}, i, i * workloads, (((i + 1) * workloads) > packets.size() ? packets.size() : ((i + 1) * workloads)));
-	}
-
-	start_test.store(true);
-	double total_throughput = 0;
-	for (int i = 0; i < thread_num; ++i) {
-		threads[i].join();
-		total_throughput += throughput[i];
-	}
-	start_test.store(false);
-	printf("\nthroughput: %f M/s\n\n", total_throughput);
-
-	// multi-thread read with write
-	thread update_thread([&]()-> bool {
-		random_device seed;
-		mt19937 rd(seed());
-		uniform_int_distribution<> dis(0, rules.size() - 1);
-		int up_num[4] = { 0 };
-		struct timespec t1, t2;
-		double s_time = 0;
-		while (!start_test);
-		while (true) {
-			if (cur_packet < 250000) {
-				if (cur_packet % 10000 == 0) {
-					int idx = dis(rd);
-					clock_gettime(CLOCK_REALTIME, &t1);
-					tree.remove_multiThread(rules[idx]);
-					tree.insert_multiThread(rules[idx]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					s_time += get_nano_time(&t1, &t2);
-					++up_num[0];
-				}
-			}
-			else if (cur_packet < 500000) {
-				if (cur_packet % 1000 == 0) {
-					int idx = dis(rd);
-					clock_gettime(CLOCK_REALTIME, &t1);
-					tree.remove_multiThread(rules[idx]);
-					tree.insert_multiThread(rules[idx]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					s_time += get_nano_time(&t1, &t2);
-					++up_num[1];
-				}
-			}
-			else if (cur_packet < 750000) {
-				if (cur_packet % 100 == 0) {
-					int idx = dis(rd);
-					clock_gettime(CLOCK_REALTIME, &t1);
-					tree.remove_multiThread(rules[idx]);
-					tree.insert_multiThread(rules[idx]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					s_time += get_nano_time(&t1, &t2);
-					++up_num[2];
-				}
-			}
-			else {
-				if (cur_packet % 10 == 0) {
-					int idx = dis(rd);
-					clock_gettime(CLOCK_REALTIME, &t1);
-					tree.remove_multiThread(rules[idx]);
-					tree.insert_multiThread(rules[idx]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					s_time += get_nano_time(&t1, &t2);
-					++up_num[3];
-				}
-			}
-			if (!start_test)break;
+					throughput[id] = 1000.0 * (end_p - start_p) / s_time;
+					//printf("%d %d %f\n", start_p, end_p, s_time / (end_p - start_p) / 1000.0);
+					//printf("id: %d throughput: %f\n", id, s_time / (end_p - start_p) / 1000.0);
+					return true;
+				}, i, i * workloads, (((i + 1) * workloads) > packets.size() ? packets.size() : ((i + 1) * workloads)));
 		}
 
-		printf("\nupdate num --- stage1: %d stage2: %d stage3: %d stage4: %d\n", up_num[0], up_num[1], up_num[2], up_num[3]);
-		int total_upNum = (up_num[0] + up_num[1] + up_num[2] + up_num[3]) * 2;
-		printf("total operate num: %d avg update time: %f um throughput: %f M/s\n", total_upNum, s_time / total_upNum / 1000.0, 1000.0 * total_upNum / s_time);
-		return true;
-		});
+		start_test.store(true);
+		double total_throughput = 0;
+		for (int i = 0; i < thread_num; ++i) {
+			threads[i].join();
+			total_throughput += throughput[i];
+		}
+		start_test.store(false);
+		printf("\n%d thread throughput: %f M/s\n", thread_num, total_throughput);
 
-
-	for (int i = 0; i < thread_num; ++i) {
-		threads[i] = thread([&](int id, int start_p, int end_p)->bool
-			{
-				struct timespec t1, t2;
-				int res = -1;
-				double s_time = 0;
-				while (!start_test);
-				for (int j = start_p; j < end_p; ++j) {
-					//printf("%d\n", j);
-					clock_gettime(CLOCK_REALTIME, &t1);
-					res = tree.search_multiThread(packets[j]);
-					clock_gettime(CLOCK_REALTIME, &t2);
-					++cur_packet;
-					double _time = get_nano_time(&t1, &t2);
-					//printf("%f\n", _time);
-					s_time += _time;
-					if (res != check_list[j]) {
-						if (res != -1 && !check_correct(rules[res], packets[j])) {
-							fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
-							//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
-							return false;
-						}
+		// multi-thread read with write
+		thread update_thread([&]()-> bool {
+			random_device seed;
+			mt19937 rd(seed());
+			uniform_int_distribution<> dis(0, rules.size() - 1);
+			int up_num[4] = { 0 };
+			struct timespec t1, t2;
+			double s_time = 0;
+			while (!start_test);
+			while (true) {
+				if (cur_packet < 250000) {
+					if (cur_packet % 10000 == 0) {
+						int idx = dis(rd);
+						clock_gettime(CLOCK_REALTIME, &t1);
+						tree.remove_multiThread(rules[idx]);
+						tree.insert_multiThread(rules[idx]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						s_time += get_nano_time(&t1, &t2);
+						++up_num[0];
 					}
 				}
-				throughput[id] = 1000.0 * (end_p - start_p) / s_time;
-				//printf("%d %d %f\n", start_p, end_p, s_time / (end_p - start_p) / 1000.0);
-				//printf("id: %d throughput: %f\n", id, s_time / (end_p - start_p) / 1000.0);
-				return true;
-			}, i, i * workloads, (((i + 1) * workloads) > packets.size() ? packets.size() : ((i + 1) * workloads)));
-	}
+				else if (cur_packet < 500000) {
+					if (cur_packet % 1000 == 0) {
+						int idx = dis(rd);
+						clock_gettime(CLOCK_REALTIME, &t1);
+						tree.remove_multiThread(rules[idx]);
+						tree.insert_multiThread(rules[idx]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						s_time += get_nano_time(&t1, &t2);
+						++up_num[1];
+					}
+				}
+				else if (cur_packet < 750000) {
+					if (cur_packet % 100 == 0) {
+						int idx = dis(rd);
+						clock_gettime(CLOCK_REALTIME, &t1);
+						tree.remove_multiThread(rules[idx]);
+						tree.insert_multiThread(rules[idx]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						s_time += get_nano_time(&t1, &t2);
+						++up_num[2];
+					}
+				}
+				else {
+					if (cur_packet % 10 == 0) {
+						int idx = dis(rd);
+						clock_gettime(CLOCK_REALTIME, &t1);
+						tree.remove_multiThread(rules[idx]);
+						tree.insert_multiThread(rules[idx]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						s_time += get_nano_time(&t1, &t2);
+						++up_num[3];
+					}
+				}
+				if (!start_test)break;
+			}
 
-	start_test.store(true);
-	total_throughput = 0;
-	for (int i = 0; i < thread_num; ++i) {
-		threads[i].join();
-		total_throughput += throughput[i];
+			printf("\nupdate num --- stage1: %d stage2: %d stage3: %d stage4: %d\n", up_num[0], up_num[1], up_num[2], up_num[3]);
+			int total_upNum = (up_num[0] + up_num[1] + up_num[2] + up_num[3]) * 2;
+			printf("total operate num: %d avg update time: %f um throughput: %f M/s\n", total_upNum, s_time / total_upNum / 1000.0, 1000.0 * total_upNum / s_time);
+			return true;
+			});
+
+
+		for (int i = 0; i < thread_num; ++i) {
+			threads[i] = thread([&](int id, int start_p, int end_p)->bool
+				{
+					struct timespec t1, t2;
+					int res = -1;
+					double s_time = 0;
+					while (!start_test);
+					for (int j = start_p; j < end_p; ++j) {
+						//printf("%d\n", j);
+						clock_gettime(CLOCK_REALTIME, &t1);
+						res = tree.search_multiThread(packets[j]);
+						clock_gettime(CLOCK_REALTIME, &t2);
+						++cur_packet;
+						double _time = get_nano_time(&t1, &t2);
+						//printf("%f\n", _time);
+						s_time += _time;
+						if (res != check_list[j]) {
+							if (res != -1 && !check_correct(rules[res], packets[j])) {
+								fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
+								//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
+								return false;
+							}
+						}
+					}
+					throughput[id] = 1000.0 * (end_p - start_p) / s_time;
+					//printf("%d %d %f\n", start_p, end_p, s_time / (end_p - start_p) / 1000.0);
+					//printf("id: %d throughput: %f\n", id, s_time / (end_p - start_p) / 1000.0);
+					return true;
+				}, i, i * workloads, (((i + 1) * workloads) > packets.size() ? packets.size() : ((i + 1) * workloads)));
+		}
+
+		start_test.store(true);
+		total_throughput = 0;
+		for (int i = 0; i < thread_num; ++i) {
+			threads[i].join();
+			total_throughput += throughput[i];
+		}
+		start_test.store(false);
+		update_thread.join();
+		printf("\n%d thread throughput with update: %f M/s\n", thread_num, total_throughput);
 	}
-	start_test.store(false);
-	update_thread.join();
-	printf("\nthroughput: %f M/s\n", total_throughput);
 }
