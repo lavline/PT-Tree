@@ -29,5 +29,6 @@
 
 void gen_trace(std::vector<Packet>& packets, std::vector<int>& check_list, std::vector<Rule>& rules, unsigned int size);
 void gen_trace(std::vector<Packet>& packets, std::vector<Rule>& rules, unsigned int size);
+void gen_trace(Packet& p, std::vector<Rule>& rules, uint32_t& check, unsigned int size);
 
 #endif // !_GEN_H_

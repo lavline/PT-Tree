@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
 	bool enable_log = false;
 	bool enable_search_config = true;
 	bool enable_update = false;
+	int time_model = 1;
 	int log_level = 1; // {1,2,3}
 	vector<uint8_t> set_field;
 	int set_port = 1;
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "r:p:f:l:uh", opts, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "r:p:f:l:t:uh", opts, NULL)) != -1) {
 		switch (opt)
 		{
 		case 'r':
@@ -88,6 +89,14 @@ int main(int argc, char* argv[]) {
 			set_port = tmp_in_field[i];
 			break;
 		}
+		case 't': {
+			time_model = atoi(optarg);
+			if (time_model != 1 && time_model != 2) {
+				cout << "The parameter of -t is incorrect.\n";
+				return -1;
+			}
+			break;
+		}
 		case 'l':
 			enable_log = true;
 			log_level = atoi(optarg);
@@ -109,6 +118,7 @@ int main(int argc, char* argv[]) {
 			cout <<   "*                Using 0-3 to express source ip 1-4 byte and 4-7 to express destination ip 1-4 byte. (Example: [-f 4,0,1,1])                               *\n";
 			cout <<   "* -l(--log):     Enable the log. Have three level 1-3. (Example: [-l 3])                                                                                   *\n";
 			cout <<   "* -u(--update):  Enable update. (Example: [-u])                                                                                                            *\n";
+			cout <<   "* -t:  Using time or clock to monitor. 1: microsecond 2: clock (Example: [-t 2])                                                                           *\n";
 			cout <<   "* -h(--help):    Print the usage guideline.                                                                                                                *\n";
 			cout <<   "************************************************************************************************************************************************************\n\n";
 			if (argc == 2)return 0;
@@ -211,8 +221,21 @@ int main(int argc, char* argv[]) {
 		set_port = best_config2;
 	}
 	
-	single_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
-	multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+	switch (time_model)
+	{
+	case 1: {
+		single_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+		multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+		break;
+	}
+	case 2: {
+		single_thread_cycle(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+		multi_thread_cycle(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+		break;
+	}
+	default:
+		break;
+	}
 
 	cout << "\nProgram complete.\n\n";
 	return 0;

@@ -2058,6 +2058,33 @@ bool PTtree::update(vector<Rule>& rules, int num, struct timespec& t1, struct ti
 	return true;
 }
 
+bool PTtree::update_cycle(vector<Rule>& rules, int num, uint64_t& total_cycle)
+{
+	int ruleNum = rules.size();
+	vector<Rule> newRule;
+	for (int i = 0; i < num; ++i) {
+		Rule r = rules[i];
+		r.pri = ruleNum++;
+		newRule.emplace_back(r);
+	}
+
+	uint64_t cyl = GetCPUCycle();
+	// remove
+	for (int i = 0; i < num; ++i) {
+		bool res = this->remove(rules[i]);
+		if (!res) {
+			fprintf(stderr, "error-can not find rule! Remove rules failed!");
+			return res;
+		}
+	}
+	// insert
+	for (int i = 0; i < num; ++i) {
+		this->insert(newRule[i]);
+	}
+	total_cycle = GetCPUCycle() - cyl;
+	return true;
+}
+
 void PTtree::print_node_info(int level, int rules)
 {
 	std::cout << "|- Total nodes num:          " << this->totalNodes << std::endl;

@@ -140,6 +140,7 @@ public:
 	int search_with_log(Packet& p, ACL_LOG& log);
 
 	bool update(vector<Rule>& rules, int num, struct timespec& t1, struct timespec& t2);
+	bool update_cycle(vector<Rule>& rules, int num, uint64_t& total_cycle);
 
 	void print_node_info(int level, int rules);
 
