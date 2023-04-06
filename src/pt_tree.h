@@ -79,7 +79,9 @@ struct IpNode_static {
 };
 struct LeafNode {
 	vector<Rule> rule;
-	vector<Rule> cp_rule;
+	//vector<Rule> cp_rule;
+	LeafNode(){}
+	LeafNode(vector<Rule>& _rule) : rule(_rule){}
 };
 struct PortNode_static
 {
@@ -120,6 +122,7 @@ public:
 	vector<void*> portNodeList;
 	vector<LeafNode*> pLeafNodeList;
 	vector<LeafNode*> aLeafNodeList;
+	list<LeafNode*> re_leaf;
 
 	PTtree(vector<uint8_t>& list, int _portField);
 	PTtree(vector<uint8_t>& list, int _portField, int _portStep);
@@ -179,5 +182,4 @@ inline uint64_t GetCPUCycle()
 
 double get_nano_time(struct timespec* a, struct timespec* b);
 double get_milli_time(struct timespec* a, struct timespec* b);
-double sleep_for_sync(int n);
 #endif // !_PT_TREE_
