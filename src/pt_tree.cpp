@@ -52,11 +52,6 @@ PTtree::~PTtree()
 		}
 		delete(aTree);
 	}
-	while (!re_leaf.empty())
-	{
-		delete re_leaf.front();
-		re_leaf.pop_front();
-	}
 }
 
 void PTtree::freeStaticNode(IpNode_static* node)
@@ -87,6 +82,15 @@ void PTtree::freeNode(IpNode* node)
 		}
 	}
 	delete(node);
+}
+
+void PTtree::free_del_leaf()
+{
+	for (auto& ln : re_leaf)
+	{
+		delete ln;
+	}
+	re_leaf.clear();
 }
 
 void PTtree::construct_for_multi(vector<Rule>& rules)

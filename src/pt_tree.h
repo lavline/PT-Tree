@@ -122,7 +122,7 @@ public:
 	vector<void*> portNodeList;
 	vector<LeafNode*> pLeafNodeList;
 	vector<LeafNode*> aLeafNodeList;
-	list<LeafNode*> re_leaf;
+	vector<LeafNode*> re_leaf;
 
 	PTtree(vector<uint8_t>& list, int _portField);
 	PTtree(vector<uint8_t>& list, int _portField, int _portStep);
@@ -130,6 +130,7 @@ public:
 
 	void freeStaticNode(IpNode_static* node);
 	void freeNode(IpNode* node);
+	void free_del_leaf();
 
 	void construct_for_multi(vector<Rule>& rules);
 	

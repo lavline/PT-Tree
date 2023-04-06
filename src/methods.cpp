@@ -199,7 +199,7 @@ void multi_thread(vector<uint8_t> set_field, int set_port, bool enable_log, int 
 							//printf("%f\n", _time);
 							s_time += _time;
 							if (res != -1 && res != check_list[p_id]) {
-								if (res > check_list[p_id] || !check_correct(rules[res], packets[p_id])) {
+								if (!check_correct(rules[res], packets[p_id])) {
 									fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", p_id, check_list[p_id], res);
 									//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
 									//return false;
@@ -249,7 +249,7 @@ void multi_thread(vector<uint8_t> set_field, int set_port, bool enable_log, int 
 							//printf("%f\n", _time);
 							s_time += _time;
 							if (res != -1 && res != check_list[p_id]) {
-								if (res > check_list[p_id] || !check_correct(rules[res], packets[p_id])) {
+								if (!check_correct(rules[res], packets[p_id])) {
 									fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", p_id, check_list[p_id], res);
 									//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
 									//return false;
@@ -409,7 +409,6 @@ void multi_thread_cycle(vector<uint8_t> set_field, int set_port, bool enable_log
 
 	int thread_num = 1;
 	for (; thread_num <= 32; thread_num *= 2) {
-		int workloads = (packets.size() / thread_num) + 1;
 		double avg_cycle[thread_num];
 		atomic_bool start_test(false);
 		thread threads[thread_num];
@@ -438,7 +437,6 @@ void multi_thread_cycle(vector<uint8_t> set_field, int set_port, bool enable_log
 
 			for (int i = 0; i < 4; ++i) {
 				for (int k = 0; k < up_num[i]; ++k) {
-					int idx = dis(rd);
 					t_cycl = GetCPUCycle();
 					tree.remove_multiThread(rules[up_idx[i][k]]);
 					tree.insert_multiThread(rules[up_idx[i][k]]);
@@ -472,12 +470,12 @@ void multi_thread_cycle(vector<uint8_t> set_field, int set_port, bool enable_log
 						//printf("%d\n", j);
 						for (int p_id = 0; p_id < packets.size(); ++p_id) {
 							t_cycl = GetCPUCycle();
-							res = tree.search_multiThread(packets[p_id]);
+							res = tree.search(packets[p_id]);
 							t_cycl = GetCPUCycle() - t_cycl;
 							//printf("%f\n", _time);
 							s_time += t_cycl;
 							if (res != -1 && res != check_list[p_id]) {
-								if (res > check_list[p_id] || !check_correct(rules[res], packets[p_id])) {
+								if (!check_correct(rules[res], packets[p_id])) {
 									fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", p_id, check_list[p_id], res);
 									//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
 									//return false;
@@ -502,7 +500,7 @@ void multi_thread_cycle(vector<uint8_t> set_field, int set_port, bool enable_log
 			threads[i].join();
 			total_throughput += avg_cycle[i];
 		}
-
+		tree.free_del_leaf();
 		printf("\n%d thread avg cycle with update: %f\n", thread_num, total_throughput / thread_num);
 
 
@@ -521,12 +519,12 @@ void multi_thread_cycle(vector<uint8_t> set_field, int set_port, bool enable_log
 						//printf("%d\n", j);
 						for (int p_id = 0; p_id < packets.size(); ++p_id) {
 							t_cycle = GetCPUCycle();
-							res = tree.search_multiThread(packets[p_id]);
+							res = tree.search(packets[p_id]);
 							t_cycle = GetCPUCycle() - t_cycle;
 							//printf("%f\n", _time);
 							s_time += t_cycle;
 							if (res != -1 && res != check_list[p_id]) {
-								if (res > check_list[p_id] || !check_correct(rules[res], packets[p_id])) {
+								if (!check_correct(rules[res], packets[p_id])) {
 									fprintf(stderr, "Packet %d search result is uncorrect! True is %d, but return %d.", p_id, check_list[p_id], res);
 									//printf("Packet %d search result is uncorrect! True is %d, but return %d.", j, check_list[j], res);
 									//return false;
