@@ -225,11 +225,11 @@ int main(int argc, char* argv[]) {
 		set_port = 1;
 	}
 	for (int i = 0; i < set_field.size(); ++i)printf("%d ", set_field[i]);
-	/*switch (time_model)
+	switch (time_model)
 	{
 	case 1: {
 		single_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
-		multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+		//multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
 		break;
 	}
 	case 2: {
@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
 	}
 	default:
 		break;
-	}*/
+	}
 
 	cout << "\nProgram complete.\n\n";
 	return 0;

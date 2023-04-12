@@ -2258,7 +2258,7 @@ void CacuInfo::read_fields()
 vector<uint8_t> CacuInfo::cacu_best_fields()
 {
 	for (int i = 0; i < fields.size(); ++i) {
-		printf("%d\n", i);
+		for (auto& x : fields[i])printf("%d ", x);
 		uint64_t cur_cost = cacu_cost(fields[i]);
 		if (min_cost > cur_cost) {
 			min_cost = cur_cost;
@@ -2272,10 +2272,8 @@ vector<uint8_t> CacuInfo::cacu_best_fields()
 uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 {
 	int layers = _fields.size();
-	uint64_t total_cost;
-	uint32_t total_acc_inner = 0;
-	uint32_t total_acc_leaf = 0;
-	uint32_t total_acc_rules = 0;
+	uint32_t total_inner = 0;
+	double total_leaf_score = 0;
 	for (int i = 0; i < layers; ++i) {
 		int _field = _fields[i];
 		// cacu value
@@ -2292,64 +2290,29 @@ uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 			}
 		}
 		// partition rule
-		for (int j = 0; j < cRules.size();) {
-			int _end = j + cRules[j]->size;
-			cacu_in_node(j, _end);
-			j = _end;
-		}
-		// cacu acc
 		if (i < layers - 1) {
-			// cacu acc_inner
-			for (auto& _cr : cRules) {
-				for (int j = 0; j < cRules.size();) {
-					if (cRules[j]->cur_byte > (_cr->cur_byte & cRules[j]->cur_mask))j += cRules[j]->tSize;
-					else {
-						if ((cRules[j]->ip.i_64 & _cr->total_mask.i_64) == _cr->total_fetch_byte.i_64) {
-							if (_cr->pri >= cRules[j]->pri)++_cr->acc_inner;
-							j += cRules[j]->tSize;
-						}
-						else
-							j += cRules[j]->size;
-					}
-				}
+			for (int j = 0; j < cRules.size();) {
+				int _end = j + cRules[j]->size;
+				total_inner += cacu_in_node(j, _end);
+				j = _end;
 			}
 		}
 		else {
-			// cacu acc_leaf & acc_rule
-			//int cr_id = 0;
-			for (auto& _cr : cRules) {
-				//printf("%d\n", cr_id++);
-				for (int j = 0; j < cRules.size();) {
-					if (cRules[j]->cur_byte > (_cr->cur_byte & cRules[j]->cur_mask))j += cRules[j]->tSize;
-					else {
-						if ((cRules[j]->ip.i_64 & _cr->total_mask.i_64) == _cr->total_fetch_byte.i_64) {
-							if (_cr->pri >= cRules[j]->pri) {
-								++_cr->acc_leaf;
-								int x = cRules[j]->size;
-								for (int k = j; k < j + cRules[j]->size; ++k) {
-									if (_cr->pri >= cRules[k]->pri)++_cr->acc_rule;
-								}
-							}
-							j += cRules[j]->tSize;
-						}
-						else
-							j += cRules[j]->size;
-					}
-				}
+			for (int j = 0; j < cRules.size();) {
+				int _end = j + cRules[j]->size;
+				total_leaf_score += cacu_in_leaf(j, _end);
+				j = _end;
 			}
 		}
 	}
-	for (auto& _cr : cRules) {
-		total_acc_inner += _cr->acc_inner;
-		total_acc_leaf += _cr->acc_leaf;
-		total_acc_rules += _cr->acc_rule;
-	}
-	total_cost = total_acc_inner * 58 + total_acc_leaf * 200 + total_acc_rules * 6;
-	return total_cost;
+	double total_score = total_leaf_score + total_inner;
+	printf("%f\n", total_score);
+	return total_score;
 }
 
-void CacuInfo::cacu_in_node(int _start, int _end)
+uint32_t CacuInfo::cacu_in_node(int _start, int _end)
 {
+	uint32_t num = 0;
 	sort(cRules.begin() + _start, cRules.begin() + _end, [](CacuRule* a, CacuRule* b)->bool {
 		if (a->cur_mask != b->cur_mask)return a->cur_mask > b->cur_mask;
 		else if (a->cur_byte != b->cur_byte)return a->cur_byte < b->cur_byte;
@@ -2367,13 +2330,52 @@ void CacuInfo::cacu_in_node(int _start, int _end)
 			else {
 				cRules[i + 1]->is_first = true;
 				cRules[i]->size = 1;
+				++num;
 			}
 		}
 		else {
 			cRules[i + 1]->is_first = true;
 			cRules[i]->size = 1;
 			cRules[i]->tSize = 1;
+			++num;
 		}
 	}
 	cRules[_start]->is_first = true;
+	if (cRules[_start]->size != 1)++num;
+	return num;
+}
+
+double CacuInfo::cacu_in_leaf(int _start, int _end)
+{
+	double score = 0;
+	sort(cRules.begin() + _start, cRules.begin() + _end, [](CacuRule* a, CacuRule* b)->bool {
+		if (a->cur_mask != b->cur_mask)return a->cur_mask > b->cur_mask;
+		else if (a->cur_byte != b->cur_byte)return a->cur_byte < b->cur_byte;
+		else return a->pri < b->pri;
+		});
+	cRules[_end - 1]->size = 1;
+	cRules[_end - 1]->tSize = 1;
+	for (int i = _end - 2; i >= _start; --i) {
+		if (cRules[i]->cur_mask == cRules[i + 1]->cur_mask) {
+			cRules[i]->tSize = cRules[i + 1]->tSize + 1;
+			if (cRules[i]->cur_byte == cRules[i + 1]->cur_byte) {
+				cRules[i + 1]->is_first = false;
+				cRules[i]->size = cRules[i + 1]->size + 1;
+			}
+			else {
+				cRules[i + 1]->is_first = true;
+				cRules[i]->size = 1;
+				score += CACU_SCORE(cRules[i + 1]->size);
+			}
+		}
+		else {
+			cRules[i + 1]->is_first = true;
+			cRules[i]->size = 1;
+			cRules[i]->tSize = 1;
+			score += CACU_SCORE(cRules[i + 1]->size);
+		}
+	}
+	cRules[_start]->is_first = true;
+	if (cRules[_start]->size != 1)score += CACU_SCORE(cRules[_start]->size);
+	return score;
 }
