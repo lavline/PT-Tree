@@ -32,6 +32,29 @@
 #include <stdint.h>
 #include <time.h>
 
+union MASK {
+	uint64_t i_64;
+	struct {
+		uint32_t smask;
+		uint32_t dmask;
+	}i_32;
+	struct {
+		uint8_t mask[8];
+	}i_8;
+};
+
+union IP
+{
+	uint64_t i_64;
+	struct {
+		uint32_t sip;
+		uint32_t dip;
+	}i_32;
+	struct {
+		uint8_t ip[8];
+	}i_8;
+};
+
 typedef struct Rule {
 	int pri;  //priority
 	unsigned char protocol[2];  // [0] : mask [1] : protocol
@@ -51,5 +74,31 @@ typedef struct Packet
 	unsigned short source_port;
 	unsigned short destination_port;
 }Packet;
+
+struct CacuRule
+{
+	uint32_t pri;  //priority
+	IP total_fetch_byte;
+	MASK total_mask;
+	uint8_t cur_byte;
+	uint8_t cur_mask;
+	MASK mask;
+	IP ip;
+	//uint16_t Port[2][2];
+	bool is_first;
+	uint32_t size;
+	uint32_t tSize;
+
+	int acc_inner;
+	int acc_leaf;
+	int acc_rule;
+
+	CacuRule() : total_fetch_byte({ 0 }), total_mask({ 0 }), mask({ 0 }), is_first(false), size(1), acc_inner(1), acc_leaf(0), acc_rule(0) {}
+	/*bool operator<(CacuRule& b) {
+		if (cur_mask != b.cur_mask)return cur_mask > b.cur_mask;
+		else if (cur_byte != b.cur_byte)return cur_byte < b.cur_byte;
+		else return pri < b.pri;
+	}*/
+};
 
 #endif //__DATA_STRUCTURE_H_

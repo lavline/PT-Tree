@@ -39,11 +39,15 @@
 #define DIP_2 5
 #define DIP_3 6
 #define DIP_4 7
-#define SLEEP_TIME 18
+
+#define AVG_ACC_INNER_COST 100
+#define AVG_ACC_LEAF_COST 2
+#define AVG_ACC_RULE_COST 1
 
 using namespace std;
 
 extern uint8_t maskHash[33][4];
+extern uint32_t maskBit[33];
 
 struct IpTable
 {
@@ -107,6 +111,25 @@ struct ACL_LOG {
 	vector<LeafNode*> aLeafNodeList;
 	ACL_LOG() : rules(0), tables(0), innerNodes(0), leafNodes(0) {}
 };
+
+
+class CacuInfo {
+public:
+	//vector<Rule*> rules;
+	vector<CacuRule*> cRules;
+	vector<vector<uint8_t>> fields;
+	int best_fields_id;
+	uint64_t min_cost;
+
+	CacuInfo(vector<Rule>& _rules);
+	void reset_cRules();
+	void read_fields();
+
+	vector<uint8_t> cacu_best_fields();
+	uint64_t cacu_cost(vector<uint8_t>& _fields);
+	void cacu_in_node(int _start, int _end);
+};
+
 
 class PTtree {
 private:
@@ -183,4 +206,5 @@ inline uint64_t GetCPUCycle()
 
 double get_nano_time(struct timespec* a, struct timespec* b);
 double get_milli_time(struct timespec* a, struct timespec* b);
+uint64_t reverse_byte(uint64_t x);
 #endif // !_PT_TREE_

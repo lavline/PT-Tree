@@ -25,6 +25,10 @@
 #include "pt_tree.h"
 
 uint8_t maskHash[33][4];
+uint32_t maskBit[33] = { 0, 0x80000000, 0xC0000000, 0xE0000000, 0xF0000000, 0xF8000000, 0xFC000000, 0xFE000000, 0xFF000000,
+						 0xFF800000, 0xFFC00000, 0xFFE00000, 0xFFF00000, 0xFFF80000, 0xFFFC0000, 0xFFFE0000, 0xFFFF0000,
+						 0xFFFF8000, 0xFFFFC000, 0xFFFFE000, 0xFFFFF000, 0xFFFFF800, 0xFFFFFC00, 0xFFFFFE00, 0xFFFFFF00,
+						 0xFFFFFF80, 0xFFFFFFC0, 0xFFFFFFE0, 0xFFFFFFF0, 0xFFFFFFF8, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF };
 
 PTtree::PTtree(vector<uint8_t>& list, int _portField) : layerFields(list), portField(_portField), pTree(NULL), aTree(NULL), totalNodes(0), pt_is_modify(false), at_is_modify(false){}
 
@@ -2177,3 +2181,199 @@ double get_milli_time(struct timespec* a, struct timespec* b) {
 	return (b->tv_sec - a->tv_sec) * 1000 + (double)(b->tv_nsec - a->tv_nsec) / 1000000.0;
 }
 
+uint64_t reverse_byte(uint64_t x)
+{
+	uint8_t arry[8];
+	uint8_t re_arry[8];
+	memcpy(arry, &x, 8);
+	int k = 4;
+	int i = 0;
+	for (; i < 4; ++i)re_arry[i] = arry[--k];
+	k = 8;
+	for (; i < 8; ++i)re_arry[i] = arry[--k];
+	memcpy(&x, re_arry, 8);
+	return x;
+}
+
+CacuInfo::CacuInfo(vector<Rule>& _rules)
+{
+	min_cost = 0xFFFFFFFF;
+	best_fields_id = 0;
+	for (auto& _r : _rules) {
+		if (_r.source_mask < 4 && _r.destination_mask < 4)continue;
+		CacuRule* _cr = new CacuRule();
+		_cr->pri = _r.pri;
+		_cr->mask.i_32.smask = maskBit[_r.source_mask];
+		_cr->mask.i_32.dmask = maskBit[_r.destination_mask];
+		_cr->mask.i_64 = reverse_byte(_cr->mask.i_64);
+		memcpy(&_cr->ip.i_64, _r.source_ip, 8);
+		_cr->ip.i_64 = reverse_byte(_cr->ip.i_64);
+		_cr->ip.i_64 = _cr->ip.i_64 & _cr->mask.i_64;
+		cRules.emplace_back(_cr);
+	}
+	cRules[0]->is_first = true;
+	cRules[0]->size = cRules.size();
+}
+
+void CacuInfo::reset_cRules()
+{
+	for (auto& _cr : cRules) {
+		_cr->total_fetch_byte = { 0 };
+		_cr->total_mask = { 0 };
+		_cr->is_first = false;
+		//_cr->size = 1;
+		_cr->acc_inner = 1;
+		_cr->acc_leaf = 0;
+		_cr->acc_rule = 0;
+	}
+	cRules[0]->is_first = true;
+	cRules[0]->size = cRules.size();
+}
+
+void CacuInfo::read_fields()
+{
+	vector<uint8_t> tmp_fields;
+	tmp_fields.resize(3);
+	FILE* fp_l3 = fopen("./L3.txt", "r");
+	if (fp_l3 == NULL) {
+		fprintf(stderr, "error - can not open L3.txt\n");
+		exit(0);
+	}
+	while (fscanf(fp_l3, "%u %u %u \n", &tmp_fields[0], &tmp_fields[1], &tmp_fields[2]) != EOF) {
+		fields.emplace_back(tmp_fields);
+	}
+	fclose(fp_l3);
+	/*tmp_fields.resize(4);
+	FILE* fp_l4 = fopen("./L4.txt", "r");
+	if (fp_l4 == NULL) {
+		fprintf(stderr, "error - can not open L4.txt\n");
+		exit(0);
+	}
+	while (fscanf(fp_l4, "%u %u %u %u \n", &tmp_fields[0], &tmp_fields[1], &tmp_fields[2], &tmp_fields[3]) != EOF) {
+		fields.emplace_back(tmp_fields);
+	}
+	fclose(fp_l4);*/
+}
+
+vector<uint8_t> CacuInfo::cacu_best_fields()
+{
+	for (int i = 0; i < fields.size(); ++i) {
+		printf("%d\n", i);
+		uint64_t cur_cost = cacu_cost(fields[i]);
+		if (min_cost > cur_cost) {
+			min_cost = cur_cost;
+			best_fields_id = i;
+		}
+		reset_cRules();
+	}
+	return fields[best_fields_id];
+}
+
+uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
+{
+	int layers = _fields.size();
+	uint64_t total_cost;
+	uint32_t total_acc_inner = 0;
+	uint32_t total_acc_leaf = 0;
+	uint32_t total_acc_rules = 0;
+	for (int i = 0; i < layers; ++i) {
+		int _field = _fields[i];
+		// cacu value
+		for (auto& _cr : cRules) {
+			if (_cr->mask.i_8.mask[_field] == 0xFF) {
+				_cr->cur_mask = 0xFF;
+				_cr->cur_byte = _cr->ip.i_8.ip[_field];
+				_cr->total_mask.i_8.mask[_field] = 0xFF;
+				_cr->total_fetch_byte.i_8.ip[_field] = _cr->cur_byte;
+			}
+			else {
+				_cr->cur_mask = 0;
+				_cr->cur_byte = 0;
+			}
+		}
+		// partition rule
+		for (int j = 0; j < cRules.size();) {
+			int _end = j + cRules[j]->size;
+			cacu_in_node(j, _end);
+			j = _end;
+		}
+		// cacu acc
+		if (i < layers - 1) {
+			// cacu acc_inner
+			for (auto& _cr : cRules) {
+				for (int j = 0; j < cRules.size();) {
+					if (cRules[j]->cur_byte > (_cr->cur_byte & cRules[j]->cur_mask))j += cRules[j]->tSize;
+					else {
+						if ((cRules[j]->ip.i_64 & _cr->total_mask.i_64) == _cr->total_fetch_byte.i_64) {
+							if (_cr->pri >= cRules[j]->pri)++_cr->acc_inner;
+							j += cRules[j]->tSize;
+						}
+						else
+							j += cRules[j]->size;
+					}
+				}
+			}
+		}
+		else {
+			// cacu acc_leaf & acc_rule
+			//int cr_id = 0;
+			for (auto& _cr : cRules) {
+				//printf("%d\n", cr_id++);
+				for (int j = 0; j < cRules.size();) {
+					if (cRules[j]->cur_byte > (_cr->cur_byte & cRules[j]->cur_mask))j += cRules[j]->tSize;
+					else {
+						if ((cRules[j]->ip.i_64 & _cr->total_mask.i_64) == _cr->total_fetch_byte.i_64) {
+							if (_cr->pri >= cRules[j]->pri) {
+								++_cr->acc_leaf;
+								int x = cRules[j]->size;
+								for (int k = j; k < j + cRules[j]->size; ++k) {
+									if (_cr->pri >= cRules[k]->pri)++_cr->acc_rule;
+								}
+							}
+							j += cRules[j]->tSize;
+						}
+						else
+							j += cRules[j]->size;
+					}
+				}
+			}
+		}
+	}
+	for (auto& _cr : cRules) {
+		total_acc_inner += _cr->acc_inner;
+		total_acc_leaf += _cr->acc_leaf;
+		total_acc_rules += _cr->acc_rule;
+	}
+	total_cost = total_acc_inner * 58 + total_acc_leaf * 200 + total_acc_rules * 6;
+	return total_cost;
+}
+
+void CacuInfo::cacu_in_node(int _start, int _end)
+{
+	sort(cRules.begin() + _start, cRules.begin() + _end, [](CacuRule* a, CacuRule* b)->bool {
+		if (a->cur_mask != b->cur_mask)return a->cur_mask > b->cur_mask;
+		else if (a->cur_byte != b->cur_byte)return a->cur_byte < b->cur_byte;
+		else return a->pri < b->pri;
+		});
+	cRules[_end - 1]->size = 1;
+	cRules[_end - 1]->tSize = 1;
+	for (int i = _end - 2; i >= _start; --i) {
+		if (cRules[i]->cur_mask == cRules[i + 1]->cur_mask) {
+			cRules[i]->tSize = cRules[i + 1]->tSize + 1;
+			if (cRules[i]->cur_byte == cRules[i + 1]->cur_byte) {
+				cRules[i + 1]->is_first = false;
+				cRules[i]->size = cRules[i + 1]->size + 1;
+			}
+			else {
+				cRules[i + 1]->is_first = true;
+				cRules[i]->size = 1;
+			}
+		}
+		else {
+			cRules[i + 1]->is_first = true;
+			cRules[i]->size = 1;
+			cRules[i]->tSize = 1;
+		}
+	}
+	cRules[_start]->is_first = true;
+}
