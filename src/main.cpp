@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	single_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
-	multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
+	//multi_thread(set_field, set_port, enable_log, log_level, enable_update, rules, packets, check_list);
 
 	cout << "\nProgram complete.\n\n";
 	return 0;
