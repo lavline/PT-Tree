@@ -2305,7 +2305,19 @@ uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 			}
 		}
 	}
-	double total_score = total_leaf_score + total_inner;
+	uint32_t inverse_n = 0;
+	for (int i = 0; i < cRules.size(); i += cRules[i]->size) {
+		for (int j = 0; j < i;) {
+			if (cRules[j]->pri > cRules[i]->pri && cRules[j]->total_fetch_byte.i_64 == (cRules[i]->total_fetch_byte.i_64 & cRules[j]->total_mask.i_64)) {
+				++inverse_n;
+				j += cRules[j]->tSize;
+			}
+			else {
+				j += cRules[j]->size;
+			}
+		}
+	}
+	double total_score = total_leaf_score + total_inner + inverse_n;
 	printf("%f\n", total_score);
 	return total_score;
 }

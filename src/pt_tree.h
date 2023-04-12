@@ -43,7 +43,7 @@
 #define AVG_ACC_INNER_COST 100
 #define AVG_ACC_LEAF_COST 2
 #define AVG_ACC_RULE_COST 1
-#define CACU_SCORE(x) (0.015625 * (x) * (x))
+#define CACU_SCORE(x) (0.00024414062 * (x) * (x) * (x))
 
 using namespace std;
 
