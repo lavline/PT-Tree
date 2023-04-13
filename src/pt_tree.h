@@ -43,7 +43,7 @@
 #define AVG_ACC_INNER_COST 100
 #define AVG_ACC_LEAF_COST 2
 #define AVG_ACC_RULE_COST 1
-#define CACU_SCORE(x) (0.00024414062 * (x) * (x) * (x))
+#define CACU_SCORE(x) (0.00012 * (x) * (x))
 
 using namespace std;
 
@@ -120,14 +120,14 @@ public:
 	vector<CacuRule*> cRules;
 	vector<vector<uint8_t>> fields;
 	int best_fields_id;
-	uint64_t min_cost;
+	double min_cost;
 
 	CacuInfo(vector<Rule>& _rules);
 	void reset_cRules();
 	void read_fields();
 
 	vector<uint8_t> cacu_best_fields();
-	uint64_t cacu_cost(vector<uint8_t>& _fields);
+	double cacu_cost(vector<uint8_t>& _fields);
 	uint32_t cacu_in_node(int _start, int _end);
 	double cacu_in_leaf(int _start, int _end);
 };

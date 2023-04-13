@@ -2259,7 +2259,7 @@ vector<uint8_t> CacuInfo::cacu_best_fields()
 {
 	for (int i = 0; i < fields.size(); ++i) {
 		for (auto& x : fields[i])printf("%d ", x);
-		uint64_t cur_cost = cacu_cost(fields[i]);
+		double cur_cost = cacu_cost(fields[i]);
 		if (min_cost > cur_cost) {
 			min_cost = cur_cost;
 			best_fields_id = i;
@@ -2269,7 +2269,7 @@ vector<uint8_t> CacuInfo::cacu_best_fields()
 	return fields[best_fields_id];
 }
 
-uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
+double CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 {
 	int layers = _fields.size();
 	uint32_t total_inner = 0;
@@ -2316,10 +2316,10 @@ uint64_t CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 				j += cRules[j]->size;
 			}
 		}
-		for (int j = 0; j < 100; ++j)if (i < cRules.size())i = i + cRules[i]->size;
+		for (int j = 0; j < 200; ++j)if (i < cRules.size())i = i + cRules[i]->size;
 	}
-	double total_score = total_leaf_score + total_inner + inverse_n * 100;
-	printf("%f\n", total_score);
+	double total_score = total_leaf_score + total_inner + inverse_n * 2000;
+	printf("%f %d  %d %f\n", total_leaf_score, total_inner, inverse_n, total_score);
 	return total_score;
 }
 
@@ -2378,17 +2378,17 @@ double CacuInfo::cacu_in_leaf(int _start, int _end)
 			else {
 				cRules[i + 1]->is_first = true;
 				cRules[i]->size = 1;
-				score += CACU_SCORE(cRules[i + 1]->size);
+				if(cRules[i + 1]->size > 16) score += CACU_SCORE(cRules[i + 1]->size);
 			}
 		}
 		else {
 			cRules[i + 1]->is_first = true;
 			cRules[i]->size = 1;
 			cRules[i]->tSize = 1;
-			score += CACU_SCORE(cRules[i + 1]->size);
+			if (cRules[i + 1]->size > 16) score += CACU_SCORE(cRules[i + 1]->size);
 		}
 	}
 	cRules[_start]->is_first = true;
-	if (cRules[_start]->size != 1)score += CACU_SCORE(cRules[_start]->size);
+	if (cRules[_start]->size > 16) score += CACU_SCORE(cRules[_start]->size);
 	return score;
 }
