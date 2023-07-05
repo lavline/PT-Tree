@@ -109,9 +109,9 @@ void single_thread(vector<uint8_t> set_field, int set_port, bool enable_log, int
 		int update_num = 5000;
 		cout << "\nStart update...\n";
 		bool _u = tree.update(rules, update_num, t1, t2);
-		if (_u) {
+		/*if (_u) {
 			cout << "|- Average update time: " << get_nano_time(&t1, &t2) / (update_num * 2.0) / 1000.0 << "um\n";
-		}
+		}*/
 	}
 }
 

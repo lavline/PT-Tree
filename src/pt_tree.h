@@ -28,6 +28,7 @@
 #include <iostream>
 #include <atomic>
 #include <cmath>
+#include <random>
 #include <unistd.h>
 #include "data_structure.h"
 
@@ -130,6 +131,7 @@ public:
 	double cacu_cost(vector<uint8_t>& _fields);
 	uint32_t cacu_in_node(int _start, int _end);
 	double cacu_in_leaf(int _start, int _end);
+	double cacu_score(uint32_t x);
 };
 
 
@@ -160,6 +162,7 @@ public:
 	void construct_for_multi(vector<Rule>& rules);
 	
 	void insert(Rule& r);
+	void insert_up(Rule& r);
 	int insert_multiThread(Rule& r);
 	bool remove(Rule& r);
 	bool remove_multiThread(Rule& r);

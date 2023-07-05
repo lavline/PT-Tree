@@ -219,10 +219,14 @@ int main(int argc, char* argv[]) {
 		//else cout << "Dport";
 		//cout << "\n|- Minimum lookup time:   " << best_time / 1000000.0 << "um\n";
 		//set_port = best_config2;
+		clock_gettime(CLOCK_REALTIME, &t1);
 		CacuInfo cacu(rules);
 		cacu.read_fields();
 		set_field = cacu.cacu_best_fields();
 		set_port = 1;
+		clock_gettime(CLOCK_REALTIME, &t2);
+		double search_config_time = get_milli_time(&t1, &t2);
+		printf("search config time: %f s\n", search_config_time / 1000.0);
 	}
 	for (int i = 0; i < set_field.size(); ++i)printf("%d ", set_field[i]);
 	switch (time_model)

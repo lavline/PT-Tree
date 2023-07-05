@@ -465,6 +465,378 @@ void PTtree::insert(Rule& r)
 	}
 }
 
+void PTtree::insert_up(Rule& r)
+{
+	if (r.source_mask < 4 && r.destination_mask < 4) { //inser in assit tree
+		if (aTree == NULL) {
+			aTree = new ProtoNode();
+			++totalNodes;
+		}
+		int proto = r.protocol[1];
+		int proto_idx = aTree->table[proto];
+		int lport_idx, hport_idx;
+		if (portField == 0) { lport_idx = r.source_port[0] / 2, hport_idx = r.source_port[1] / 2; }
+		else { lport_idx = r.destination_port[0] / 2, hport_idx = r.destination_port[1] / 2; }
+		if (proto_idx == -1) {
+			aTree->table[proto] = aTree->child.size();
+			PortNode_static* pnode = new PortNode_static(portNodeList.size());
+			++totalNodes;
+			if (lport_idx == hport_idx) pnode->table[lport_idx] = 0;
+			else pnode->table[32768] = 0;
+			LeafNode* lnode = new LeafNode();
+			++totalNodes;
+			aLeafNodeList.emplace_back(lnode);
+			lnode->rule.emplace_back(r);
+			pnode->child.emplace_back(pair<uint32_t, LeafNode*>(r.pri, lnode));
+			aTree->child.emplace_back(pair<uint32_t, void*>(r.pri, pnode));
+			portNodeList.emplace_back(pnode);
+		}
+		else {
+			PortNode_static* pnode = (PortNode_static*)aTree->child[proto_idx].second;
+			if (r.pri < aTree->child[proto_idx].first)aTree->child[proto_idx].first = r.pri;
+			int c_id;
+			if (lport_idx == hport_idx)c_id = lport_idx;
+			else c_id = 32768;
+			int le_id = pnode->table[c_id];
+			if (le_id == -1) {
+				pnode->table[c_id] = pnode->child.size();
+				LeafNode* lnode = new LeafNode();
+				++totalNodes;
+				aLeafNodeList.emplace_back(lnode);
+				lnode->rule.emplace_back(r);
+				pnode->child.emplace_back(pair<uint32_t, LeafNode*>(r.pri, lnode));
+			}
+			else {
+				if (r.pri < pnode->child[le_id].first)pnode->child[le_id].first = r.pri;
+				LeafNode* lnode = pnode->child[le_id].second;
+
+				int k = 0;
+				for (; k < lnode->rule.size(); ++k)
+					if (r.pri < lnode->rule[k].pri)break;
+				lnode->rule.emplace(lnode->rule.begin() + k, r);
+			}
+		}
+	}
+	else { // insert in PTtree
+		switch (layerFields.size())
+		{
+		case 3: {
+			if (pTree == NULL) {
+				pTree = new IpNode_static(layerFields[0], 0, 0, 0);
+				ipNodeList.emplace_back(pTree);
+				++totalNodes;
+			}
+			IpNode_static* node = (IpNode_static*)pTree;
+			int layer = 0;
+			unsigned int mask, ip;
+			while (layer < 2) {
+				switch (node->field)
+				{
+				case 0:
+					mask = maskHash[(unsigned int)r.source_mask][0];
+					ip = (unsigned int)r.source_ip[3];
+					break;
+				case 1:
+					mask = maskHash[(unsigned int)r.source_mask][1];
+					ip = (unsigned int)r.source_ip[2];
+					break;
+				case 2:
+					mask = maskHash[(unsigned int)r.source_mask][2];
+					ip = (unsigned int)r.source_ip[1];
+					break;
+				case 3:
+					mask = maskHash[(unsigned int)r.source_mask][3];
+					ip = (unsigned int)r.source_ip[0];
+					break;
+				case 4:
+					mask = maskHash[(unsigned int)r.destination_mask][0];
+					ip = (unsigned int)r.destination_ip[3];
+					break;
+				case 5:
+					mask = maskHash[(unsigned int)r.destination_mask][1];
+					ip = (unsigned int)r.destination_ip[2];
+					break;
+				case 6:
+					mask = maskHash[(unsigned int)r.destination_mask][2];
+					ip = (unsigned int)r.destination_ip[1];
+					break;
+				case 7:
+					mask = maskHash[(unsigned int)r.destination_mask][3];
+					ip = (unsigned int)r.destination_ip[0];
+					break;
+				default:
+					break;
+				}
+				int ip_idx = mask == 8 ? ip : 256;
+				if (node->child[ip_idx].pointer == NULL) {
+					IpNode_static* newchild = new IpNode_static(layerFields[layer + 1], 0, layer + 1, ipNodeList.size());
+					node->child[ip_idx].pointer = newchild;
+					node->child[ip_idx].pri = r.pri;
+					ipNodeList.emplace_back(newchild);
+					++totalNodes;
+					node = newchild;
+				}
+				else
+				{
+					if (r.pri < node->child[ip_idx].pri)node->child[ip_idx].pri = r.pri;
+					node = (IpNode_static*)node->child[ip_idx].pointer;
+				}
+				++layer;
+			}
+			// process leafnode
+			node->childType = 1;
+			switch (node->field)
+			{
+			case 0:
+				mask = maskHash[(unsigned int)r.source_mask][0];
+				ip = (unsigned int)r.source_ip[3];
+				break;
+			case 1:
+				mask = maskHash[(unsigned int)r.source_mask][1];
+				ip = (unsigned int)r.source_ip[2];
+				break;
+			case 2:
+				mask = maskHash[(unsigned int)r.source_mask][2];
+				ip = (unsigned int)r.source_ip[1];
+				break;
+			case 3:
+				mask = maskHash[(unsigned int)r.source_mask][3];
+				ip = (unsigned int)r.source_ip[0];
+				break;
+			case 4:
+				mask = maskHash[(unsigned int)r.destination_mask][0];
+				ip = (unsigned int)r.destination_ip[3];
+				break;
+			case 5:
+				mask = maskHash[(unsigned int)r.destination_mask][1];
+				ip = (unsigned int)r.destination_ip[2];
+				break;
+			case 6:
+				mask = maskHash[(unsigned int)r.destination_mask][2];
+				ip = (unsigned int)r.destination_ip[1];
+				break;
+			case 7:
+				mask = maskHash[(unsigned int)r.destination_mask][3];
+				ip = (unsigned int)r.destination_ip[0];
+				break;
+			default:
+				break;
+			}
+			int ip_idx = mask == 8 ? ip : 256;
+			if (node->child[ip_idx].pointer == NULL) {
+				LeafNode* newchild = new LeafNode();
+				newchild->rule.emplace_back(r);
+				node->child[ip_idx].pointer = newchild;
+				node->child[ip_idx].pri = r.pri;
+				pLeafNodeList.emplace_back(newchild);
+				++totalNodes;
+			}
+			else
+			{
+				if (r.pri < node->child[ip_idx].pri)node->child[ip_idx].pri = r.pri;
+				LeafNode* ln = (LeafNode*)node->child[ip_idx].pointer;
+				int k = 0;
+				for (; k < ln->rule.size(); ++k)
+					if (r.pri < ln->rule[k].pri)break;
+				ln->rule.emplace(ln->rule.begin() + k, r);
+			}
+			break;
+		}
+		default: {
+			if (pTree == NULL) {
+				pTree = new IpNode(layerFields[0], 0, 0, 0);
+				ipNodeList.emplace_back(pTree);
+				++totalNodes;
+			}
+			IpNode* node = (IpNode*)pTree;
+			int totalLayer = layerFields.size();
+			int layer = 0;
+			unsigned int mask, ip;
+			while (layer < totalLayer - 1) {
+				switch (node->field)
+				{
+				case 0:
+					mask = maskHash[(unsigned int)r.source_mask][0];
+					ip = (unsigned int)r.source_ip[3] >> (8 - mask);
+					break;
+				case 1:
+					mask = maskHash[(unsigned int)r.source_mask][1];
+					ip = (unsigned int)r.source_ip[2] >> (8 - mask);
+					break;
+				case 2:
+					mask = maskHash[(unsigned int)r.source_mask][2];
+					ip = (unsigned int)r.source_ip[1] >> (8 - mask);
+					break;
+				case 3:
+					mask = maskHash[(unsigned int)r.source_mask][3];
+					ip = (unsigned int)r.source_ip[0] >> (8 - mask);
+					break;
+				case 4:
+					mask = maskHash[(unsigned int)r.destination_mask][0];
+					ip = (unsigned int)r.destination_ip[3] >> (8 - mask);
+					break;
+				case 5:
+					mask = maskHash[(unsigned int)r.destination_mask][1];
+					ip = (unsigned int)r.destination_ip[2] >> (8 - mask);
+					break;
+				case 6:
+					mask = maskHash[(unsigned int)r.destination_mask][2];
+					ip = (unsigned int)r.destination_ip[1] >> (8 - mask);
+					break;
+				case 7:
+					mask = maskHash[(unsigned int)r.destination_mask][3];
+					ip = (unsigned int)r.destination_ip[0] >> (8 - mask);
+					break;
+				default:
+					break;
+				}
+				if (node->tableList.empty()) { // do not have table, create
+					IpTable t(mask);
+					IpNode* newchild = new IpNode(layerFields[layer + 1], 0, layer + 1, ipNodeList.size());
+					t.pri = r.pri;
+					t.table[ip] = 0;
+					t.child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+					node->tableList.emplace_back(t);
+					node = newchild;
+					ipNodeList.emplace_back(newchild);
+					++totalNodes;
+				}
+				else
+				{
+					list<IpTable>::iterator it = node->tableList.begin();
+					for (; it != node->tableList.end(); ++it) {
+						if (mask == it->mask) {  // have table
+							if (it->pri > r.pri) it->pri = r.pri;
+							if (it->table[ip] == -1) { // creat child
+								IpNode* newchild = new IpNode(layerFields[layer + 1], 0, layer + 1, ipNodeList.size());
+								it->table[ip] = it->child.size();
+								it->child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+								node = newchild;
+								ipNodeList.emplace_back(newchild);
+								++totalNodes;
+								break;
+							}
+							else {
+								if (it->child[it->table[ip]].first > r.pri)it->child[it->table[ip]].first = r.pri;
+								node = (IpNode*)(it->child[it->table[ip]].second);
+								break;
+							}
+						}
+						if (mask > it->mask) { // find the site
+							break;
+						}
+					}
+					if (it == node->tableList.end() || mask != it->mask) { // creat table
+						IpTable t(mask);
+						IpNode* newchild = new IpNode(layerFields[layer + 1], 0, layer + 1, ipNodeList.size());
+						t.pri = r.pri;
+						t.table[ip] = t.child.size();
+						t.child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+						node->tableList.emplace(it, t);
+						node = newchild;
+						ipNodeList.emplace_back(newchild);
+						++totalNodes;
+					}
+				}
+				++layer;
+			}
+			// process leafnode
+			node->childType = 1;
+			switch (node->field)
+			{
+			case 0:
+				mask = maskHash[(unsigned int)r.source_mask][0];
+				ip = (unsigned int)r.source_ip[3] >> (8 - mask);
+				break;
+			case 1:
+				mask = maskHash[(unsigned int)r.source_mask][1];
+				ip = (unsigned int)r.source_ip[2] >> (8 - mask);
+				break;
+			case 2:
+				mask = maskHash[(unsigned int)r.source_mask][2];
+				ip = (unsigned int)r.source_ip[1] >> (8 - mask);
+				break;
+			case 3:
+				mask = maskHash[(unsigned int)r.source_mask][3];
+				ip = (unsigned int)r.source_ip[0] >> (8 - mask);
+				break;
+			case 4:
+				mask = maskHash[(unsigned int)r.destination_mask][0];
+				ip = (unsigned int)r.destination_ip[3] >> (8 - mask);
+				break;
+			case 5:
+				mask = maskHash[(unsigned int)r.destination_mask][1];
+				ip = (unsigned int)r.destination_ip[2] >> (8 - mask);
+				break;
+			case 6:
+				mask = maskHash[(unsigned int)r.destination_mask][2];
+				ip = (unsigned int)r.destination_ip[1] >> (8 - mask);
+				break;
+			case 7:
+				mask = maskHash[(unsigned int)r.destination_mask][3];
+				ip = (unsigned int)r.destination_ip[0] >> (8 - mask);
+				break;
+			default:
+				break;
+			}
+			if (node->tableList.empty()) { // do not have table, create
+				IpTable t(mask);
+				LeafNode* newchild = new LeafNode();
+				newchild->rule.emplace_back(r);
+				t.pri = r.pri;
+				t.table[ip] = 0;
+				t.child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+				node->tableList.emplace_back(t);
+				pLeafNodeList.emplace_back(newchild);
+				++totalNodes;
+			}
+			else
+			{
+				list<IpTable>::iterator it = node->tableList.begin();
+				for (; it != node->tableList.end(); ++it) {
+					if (mask == it->mask) {  // have table
+						if (it->pri > r.pri) it->pri = r.pri;
+						if (it->table[ip] == -1) { // creat child
+							LeafNode* newchild = new LeafNode();
+							newchild->rule.emplace_back(r);
+							it->table[ip] = it->child.size();
+							it->child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+							pLeafNodeList.emplace_back(newchild);
+							++totalNodes;
+							break;
+						}
+						else {
+							if (it->child[it->table[ip]].first > r.pri)it->child[it->table[ip]].first = r.pri;
+							LeafNode* ln = (LeafNode*)it->child[it->table[ip]].second;
+							int k = 0;
+							for (; k < ln->rule.size(); ++k)
+								if (r.pri < ln->rule[k].pri)break;
+							ln->rule.emplace(ln->rule.begin() + k, r);
+							break;
+						}
+					}
+					if (mask > it->mask) { // find the site
+						break;
+					}
+				}
+				if (it == node->tableList.end() || mask != it->mask) { // creat table
+					IpTable t(mask);
+					LeafNode* newchild = new LeafNode();
+					newchild->rule.emplace_back(r);
+					t.pri = r.pri;
+					t.table[ip] = t.child.size();
+					t.child.emplace_back(pair<uint32_t, void*>(r.pri, newchild));
+					node->tableList.emplace(it, t);
+					pLeafNodeList.emplace_back(newchild);
+					++totalNodes;
+				}
+			}
+			break;
+		}
+		}
+	}
+}
+
 int PTtree::insert_multiThread(Rule& r)
 {
 	if (r.source_mask < 4 && r.destination_mask < 4) { //inser in assit tree
@@ -1825,16 +2197,22 @@ bool PTtree::update(vector<Rule>& rules, int num, struct timespec& t1, struct ti
 {
 	int ruleNum = rules.size();
 	vector<Rule> newRule;
+	vector<int> rd_idx;
+	random_device seed;
+	mt19937 rd(seed());
+	uniform_int_distribution<> dis(0, ruleNum * 0.7);
 	for (int i = 0; i < num; ++i) {
-		Rule r = rules[i];
-		r.pri = ruleNum++;
+		int cur_idx = dis(rd);
+		while (find(rd_idx.begin(), rd_idx.end(), cur_idx) != rd_idx.end())cur_idx = dis(rd);
+		Rule r = rules[cur_idx];
 		newRule.emplace_back(r);
+		rd_idx.emplace_back(cur_idx);
 	}
 
 	clock_gettime(CLOCK_REALTIME, &t1);
 	// remove
 	for (int i = 0; i < num; ++i) {
-		bool res = this->remove(rules[i]);
+		bool res = this->remove(newRule[i]);
 		if (!res) {
 			fprintf(stderr, "error-can not find rule! Remove rules failed!");
 			return res;
@@ -1842,9 +2220,10 @@ bool PTtree::update(vector<Rule>& rules, int num, struct timespec& t1, struct ti
 	}
 	// insert
 	for (int i = 0; i < num; ++i) {
-		this->insert(newRule[i]);
+		this->insert_up(newRule[i]);
 	}
 	clock_gettime(CLOCK_REALTIME, &t2);
+	cout << "|- Average update time: " << get_milli_time(&t1, &t2) / (num * 2.0) << "um\n";
 	return true;
 }
 
@@ -1896,12 +2275,12 @@ void PTtree::print_node_info(int level, int rules)
 			else if (leaf->rule.size() < 100) ++rang_1to100;
 			else ++lager_100;
 		}
-		for (auto leaf : this->aLeafNodeList) {
+		/*for (auto leaf : this->aLeafNodeList) {
 			if (leaf->rule.size() > max_leaf)max_leaf = leaf->rule.size();
 			if (leaf->rule.size() == 1)++equ_1;
 			else if (leaf->rule.size() < 100) ++rang_1to100;
 			else ++lager_100;
-		}
+		}*/
 		std::cout << "|- Leaf node size->1:        " << equ_1 << std::endl;
 		std::cout << "|- Leaf node size->(1, 100]: " << rang_1to100 << std::endl;
 		std::cout << "|- Leaf node size->(100, +]: " << lager_100 << std::endl;
@@ -1938,9 +2317,15 @@ void PTtree::print_node_info(int level, int rules)
 
 			std::cout << "|- Write pTree leaf node infomation to pLeafNode_info.txt...\n";
 			fp = fopen("pLeafNode_info.txt", "w");
-			fprintf(fp, "Leaf Node [ID]\n|- Rule [PRI SIP DIP SPORT DPORT PROTOCOL]\n");
+			fprintf(fp, "Leaf Node [ID SIG] (SIG={[1, 1], (1, 16], (16, 32], (32, 64], (64, 128],  (128, +)})\n|- Rule [PRI SIP DIP SPORT DPORT PROTOCOL]\n");
 			for (int i = 0; i < this->pLeafNodeList.size(); ++i) {
-				fprintf(fp, "\n%d\t%u\n", i, this->pLeafNodeList[i]->rule.size());
+				int psize = this->pLeafNodeList[i]->rule.size();
+				if (psize == 1)fprintf(fp, "\n%d\t%d [1, 1]\n", i, psize);
+				else if (psize < 16)fprintf(fp, "\n%d\t%d (1, 16]\n", i, psize);
+				else if (psize < 32)fprintf(fp, "\n%d\t%d (16, 32]\n", i, psize);
+				else if (psize < 64)fprintf(fp, "\n%d\t%d (32, 64]\n", i, psize);
+				else if (psize < 128)fprintf(fp, "\n%d\t%d (64, 128]\n", i, psize);
+				else fprintf(fp, "\n%d\t%d (128, +)\n", i, psize);
 				for (auto r : this->pLeafNodeList[i]->rule)
 					fprintf(fp, "|- %u\t%u.%u.%u.%u/%u\t\t%u.%u.%u.%u/%u\t\t%u:%u\t\t%u:%u\t\t%u\n", r.pri, r.source_ip[3], r.source_ip[2], r.source_ip[1], r.source_ip[0], r.source_mask,
 						r.destination_ip[3], r.destination_ip[2], r.destination_ip[1], r.destination_ip[0], r.destination_mask, r.source_port[0], r.source_port[1],
@@ -1948,7 +2333,7 @@ void PTtree::print_node_info(int level, int rules)
 			}
 			fclose(fp);
 
-			std::cout << "|- Write aTree inner node infomation to aInnerNode_info.txt...\n";
+			/*std::cout << "|- Write aTree inner node infomation to aInnerNode_info.txt...\n";
 			fp = fopen("aInnerNode_info.txt", "w");
 			fprintf(fp, "Protocol Node [ID TABLE_NUM CHILD_NUM]\n\n");
 			fprintf(fp, "0\t1\t%u\n\n", this->aTree->child.size());
@@ -1969,7 +2354,7 @@ void PTtree::print_node_info(int level, int rules)
 						r.destination_ip[3], r.destination_ip[2], r.destination_ip[1], r.destination_ip[0], r.destination_mask, r.source_port[0], r.source_port[1],
 						r.destination_port[0], r.destination_port[1], r.protocol[1]);
 			}
-			fclose(fp);
+			fclose(fp);*/
 		}
 	}
 }
@@ -2258,7 +2643,7 @@ void CacuInfo::read_fields()
 vector<uint8_t> CacuInfo::cacu_best_fields()
 {
 	for (int i = 0; i < fields.size(); ++i) {
-		for (auto& x : fields[i])printf("%d ", x);
+		//for (auto& x : fields[i])printf("%d ", x);
 		double cur_cost = cacu_cost(fields[i]);
 		if (min_cost > cur_cost) {
 			min_cost = cur_cost;
@@ -2274,36 +2659,74 @@ double CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 	int layers = _fields.size();
 	uint32_t total_inner = 0;
 	double total_leaf_score = 0;
-	for (int i = 0; i < layers; ++i) {
-		int _field = _fields[i];
-		// cacu value
-		for (auto& _cr : cRules) {
-			if (_cr->mask.i_8.mask[_field] == 0xFF) {
-				_cr->cur_mask = 0xFF;
-				_cr->cur_byte = _cr->ip.i_8.ip[_field];
-				_cr->total_mask.i_8.mask[_field] = 0xFF;
-				_cr->total_fetch_byte.i_8.ip[_field] = _cr->cur_byte;
+	switch (layers)
+	{
+	case 3: {
+		for (int i = 0; i < 3; ++i) {
+			int _field = _fields[i];
+			// cacu value
+			for (auto& _cr : cRules) {
+				if (_cr->mask.i_8.mask[_field] == 0xFF) {
+					_cr->cur_mask = 0xFF;
+					_cr->cur_byte = _cr->ip.i_8.ip[_field];
+					_cr->total_mask.i_8.mask[_field] = 0xFF;
+					_cr->total_fetch_byte.i_8.ip[_field] = _cr->cur_byte;
+				}
+				else {
+					_cr->cur_mask = 0;
+					_cr->cur_byte = 0;
+				}
+			}
+			// partition rule
+			if (i < 2) {
+				for (int j = 0; j < cRules.size();) {
+					int _end = j + cRules[j]->size;
+					total_inner += cacu_in_node(j, _end);
+					j = _end;
+				}
 			}
 			else {
-				_cr->cur_mask = 0;
-				_cr->cur_byte = 0;
+				for (int j = 0; j < cRules.size();) {
+					int _end = j + cRules[j]->size;
+					total_leaf_score += cacu_in_leaf(j, _end);
+					j = _end;
+				}
 			}
 		}
-		// partition rule
-		if (i < layers - 1) {
-			for (int j = 0; j < cRules.size();) {
-				int _end = j + cRules[j]->size;
-				total_inner += cacu_in_node(j, _end);
-				j = _end;
+		break;
+	}
+	case 4: {
+		for (int i = 0; i < 4; ++i) {
+			int _field = _fields[i];
+			// cacu value
+			for (auto& _cr : cRules) {
+				_cr->cur_mask = _cr->mask.i_8.mask[_field];
+				_cr->cur_byte = _cr->ip.i_8.ip[_field];
+				_cr->total_mask.i_8.mask[_field] = _cr->cur_mask;
+				_cr->total_fetch_byte.i_8.ip[_field] = _cr->cur_byte;
+			}
+			// partition rule
+			if (i < 3) {
+				for (int j = 0; j < cRules.size();) {
+					int _end = j + cRules[j]->size;
+					total_inner += cacu_in_node(j, _end);
+					j = _end;
+				}
+			}
+			else {
+				for (int j = 0; j < cRules.size();) {
+					int _end = j + cRules[j]->size;
+					total_leaf_score += cacu_in_leaf(j, _end);
+					j = _end;
+				}
 			}
 		}
-		else {
-			for (int j = 0; j < cRules.size();) {
-				int _end = j + cRules[j]->size;
-				total_leaf_score += cacu_in_leaf(j, _end);
-				j = _end;
-			}
-		}
+		break;
+	}
+	default:
+		printf("layers setting is error, should be 3 or 4.\n");
+		exit(0);
+		break;
 	}
 	uint32_t inverse_n = 0;
 	for (int i = 0; i < cRules.size();) {
@@ -2316,11 +2739,18 @@ double CacuInfo::cacu_cost(vector<uint8_t>& _fields)
 				j += cRules[j]->size;
 			}
 		}
-		for (int j = 0; j < 200; ++j)if (i < cRules.size())i = i + cRules[i]->size;
+		for (int j = 0; j < 100; ++j)if (i < cRules.size())i = i + cRules[i]->size;
 	}
-	double total_score = total_leaf_score + total_inner + inverse_n * 2000;
-	printf("%f %d  %d %f\n", total_leaf_score, total_inner, inverse_n, total_score);
+	if (total_inner > 11264)total_inner *= 20;
+	//else if (layers > 3)total_inner *= 10;
+	if (inverse_n > 100)inverse_n *= 1000;
+	else if (layers == 3)inverse_n *= 350;
+	double total_score = total_leaf_score * 0.1 + total_inner + inverse_n;
+	//printf("%f %d  %d %f\n", total_leaf_score, total_inner, inverse_n, total_score);
 	return total_score;
+	/*double total_score = total_leaf_score * 0.01 + total_inner;
+	printf("%f %d %f\n", total_leaf_score * 0.01, total_inner, total_score);
+	return total_leaf_score * 0.1 + total_inner;*/
 }
 
 uint32_t CacuInfo::cacu_in_node(int _start, int _end)
@@ -2378,17 +2808,50 @@ double CacuInfo::cacu_in_leaf(int _start, int _end)
 			else {
 				cRules[i + 1]->is_first = true;
 				cRules[i]->size = 1;
-				if(cRules[i + 1]->size > 16) score += CACU_SCORE(cRules[i + 1]->size);
+				score += cacu_score(cRules[i + 1]->size);
 			}
 		}
 		else {
 			cRules[i + 1]->is_first = true;
 			cRules[i]->size = 1;
 			cRules[i]->tSize = 1;
-			if (cRules[i + 1]->size > 16) score += CACU_SCORE(cRules[i + 1]->size);
+			score += cacu_score(cRules[i + 1]->size);
 		}
 	}
 	cRules[_start]->is_first = true;
-	if (cRules[_start]->size > 16) score += CACU_SCORE(cRules[_start]->size);
+	if (cRules[_start]->size != 1)score += cacu_score(cRules[_start]->size);
 	return score;
+}
+
+double CacuInfo::cacu_score(uint32_t x)
+{
+	// acl1 acl4 fw1 fw2 fw3 ipc1 ipc2
+	/*if (x == 1)return 0.01;
+	else if (x < 8)return 0.1;
+	else if (x < 16)return 0.2;
+	else if (x < 32)return 0.4;
+	else if (x < 64)return 4;
+	else if (x < 128)return 8;
+	else if (x < 1024)return (64 * x);
+	else return (0.04 * x * x);*/
+
+	// acl1 acl2 acl3 acl4 acl5 fw2 fw3 ipc1 ipc2
+	if (x == 1)return 0.01;
+	else if (x < 8)return 0.1;
+	else if (x < 16)return 0.2;
+	else if (x < 32)return 0.4;
+	else if (x < 64)return 4;
+	else if (x < 128)return 8;
+	else if (x < 1024)return (2 * x);
+	else return (0.04 * x * x);
+
+	/*if (x == 1)return 0.01;
+	else if (x < 8)return 0.1;
+	else if (x < 16)return 0.2;
+	else if (x < 32)return 0.4;
+	else if (x < 64)return 4;
+	else if (x < 128)return 8;
+	else if (x < 352)return (2 * x);
+	else if (x < 1024)return (64 * x);
+	else return (0.04 * x * x);*/
 }
